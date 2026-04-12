@@ -18,7 +18,7 @@ import jakarta.jws.WebService;
  * comunicarse con Bases de Datos.
  * Solo reciben la petición y delegan al Orquestador (Service).
  */
-@WebService(endpointInterface = "enfok.server.model.soap.BatchService")
+
 public class BatchEndpoint implements BatchService {
 
     @Inject // Inyección de dependencias (Quarkus/CDI): Instancia el servicio de forma
