@@ -1,0 +1,32 @@
+POST http://localhost:8080/services/batches HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:enf="http://soap.model.server.enfok/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <enf:processBatch>
+         <!-- Como el parámetro Java se llama @WebParam(name = "request"), lo envolvemos así: -->
+         <request>
+            <batchId>Batch-12345</batchId>
+            <data>Datos a procesar por el nodo de Python</data>
+         </request>
+      </enf:processBatch>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+### Prueba de Error (Enviando un Batch ID vacío para atrapar la excepción BatchNotFoundException)
+
+POST http://localhost:8080/services/batches HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:enf="http://soap.model.server.enfok/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <enf:processBatch>
+         <request>
+            <batchId></batchId>
+            <data>No me proceses, voy a fallar</data>
+         </request>
+      </enf:processBatch>
+   </soapenv:Body>
+</soapenv:Envelope>
