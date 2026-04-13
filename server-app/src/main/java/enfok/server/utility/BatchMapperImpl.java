@@ -3,7 +3,7 @@ package enfok.server.utility;
 import jakarta.enterprise.context.ApplicationScoped;
 import enfok.server.model.soap.BatchRequestDto;
 import enfok.server.model.entity.BatchRecord;
-import enfok.server.port.BatchMapper; // <-- Enlazando
+import enfok.server.ports.port.BatchMapper; // <-- Enlazando
 
 @ApplicationScoped
 public class BatchMapperImpl implements BatchMapper {

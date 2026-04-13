@@ -1,4 +1,4 @@
-package enfok.server.port;
+package enfok.server.ports.adapter;
 
 import enfok.server.model.entity.BatchRecord;
 

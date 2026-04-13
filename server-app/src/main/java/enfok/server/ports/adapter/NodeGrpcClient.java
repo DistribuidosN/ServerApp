@@ -1,4 +1,4 @@
-package enfok.server.port;
+package enfok.server.ports.adapter;
 
 /**
  * [PORT - OUT]: Puerto de Salida de Red

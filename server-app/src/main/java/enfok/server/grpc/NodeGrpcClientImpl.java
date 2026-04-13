@@ -1,7 +1,7 @@
 package enfok.server.grpc;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import enfok.server.port.NodeGrpcClient; // <-- Adaptándose al Puerto de Salida
+import enfok.server.ports.adapter.NodeGrpcClient; // <-- Adaptándose al Puerto de Salida
 
 /**
  * [ADAPTER - OUT]: Adaptador de Salida (Comunicación).

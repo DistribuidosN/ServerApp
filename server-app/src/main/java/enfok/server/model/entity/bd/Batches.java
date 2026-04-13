@@ -2,7 +2,7 @@ package enfok.server.model.entity.bd;
 
 import java.sql.Timestamp;
 
-public class Batch {
+public class Batches {
     private int id;
     private String userUuid;
     private Timestamp requestTime;

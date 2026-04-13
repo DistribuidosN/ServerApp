@@ -4,7 +4,7 @@ import enfok.server.model.soap.BatchService;
 import enfok.server.model.soap.BatchRequestDto;
 import enfok.server.model.soap.BatchResponseDto;
 
-import enfok.server.port.BatchOrchestratorService; // <-- Importamos del Puerto
+import enfok.server.ports.port.BatchOrchestratorService; // <-- Importamos del Puerto
 import jakarta.inject.Inject;
 import jakarta.jws.WebService;
 
@@ -18,7 +18,7 @@ import jakarta.jws.WebService;
  * comunicarse con Bases de Datos.
  * Solo reciben la petición y delegan al Orquestador (Service).
  */
-
+@WebService(endpointInterface = "enfok.server.model.soap.BatchService", serviceName = "BatchService")
 public class BatchEndpoint implements BatchService {
 
     @Inject // Inyección de dependencias (Quarkus/CDI): Instancia el servicio de forma

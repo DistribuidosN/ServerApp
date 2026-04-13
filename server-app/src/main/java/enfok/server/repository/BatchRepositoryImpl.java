@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import enfok.server.model.entity.BatchRecord;
-import enfok.server.port.BatchRepository; // <-- Adaptándose al Puerto de Salida
+import enfok.server.ports.adapter.BatchRepository; // <-- Adaptándose al Puerto de Salida
 
 /**
  * [ADAPTER - OUT]: Adaptador de Salida de Base de Datos.

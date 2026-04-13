@@ -1,4 +1,4 @@
-package enfok.server.port;
+package enfok.server.ports.port;
 
 import enfok.server.model.soap.BatchRequestDto;
 import enfok.server.model.soap.BatchResponseDto;
