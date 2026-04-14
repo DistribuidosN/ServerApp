@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+package enfok.server.grpc;
+
+// El Orquestador expone este servicio para que los Workers lo llamen
+service ProcessingOrchestrator {
+  
+  // 1. PULL: El worker pide una tarea cuando est\u00E1 libre
+  rpc GetNextTask (WorkerIdentity) returns (ImageTask);
+
+  // 2. STATUS: El worker informa c\u00F3mo va con la imagen actual
+  rpc UpdateTaskStatus (TaskProgress) returns (Ack);
+
+  // 3. METRICS: El worker reporta su salud (CPU/RAM)
+  rpc ReportMetrics (NodeHealth) returns (Ack);
+
+  // 4. HEARTBEAT: Un "ping" r\u00E1pido para decir "sigo vivo"
+  rpc SendHeartbeat (WorkerIdentity) returns (Ack);
+}
+
+// --- MENSAJES ---
+
+message WorkerIdentity {
+  string worker_id = 1;
+  string ip_address = 2;
+}
+
+message ImageTask {
+  string task_id = 1;
+  string image_url = 2;      // O el path en MinIO
+  string filter_type = 3;
+  int32 width = 4;
+  int32 height = 5;
+  bool is_empty = 6;         // True si no hay tareas en la cola
+}
+
+message TaskProgress {
+  string task_id = 1;
+  string worker_id = 2;
+  int32 progress_percentage = 3;
+  string status_message = 4; // Ej: "Aplicando filtro Sobel"
+}
+
+message NodeHealth {
+  string worker_id = 1;
+  float cpu_usage = 2;       // 0.0 a 100.0
+  float ram_usage_mb = 3;
+  int32 active_threads = 4;
+}
+
+message Ack {
+  bool success = 1;
+}

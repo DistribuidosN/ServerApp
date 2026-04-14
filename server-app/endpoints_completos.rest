@@ -94,6 +94,51 @@ Authorization: Bearer {{token}}
    </soapenv:Body>
 </soapenv:Envelope>
 
+### 2.4 Subir Imagen Simple (uploadImages - 1 filtro)
+POST {{baseUrl}}/node HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Authorization: Bearer {{token}}
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:enf="http://node.soap.model.server.enfok/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <enf:uploadImages>
+         <!-- Imagen PNG 1x1 en Base64 (la consola mostrará 1x1px) -->
+         <imageData>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=</imageData>
+         <fileName>test_1x1.png</fileName>
+         <transformations>
+            <name>blur</name>
+         </transformations>
+      </enf:uploadImages>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+### 2.5 Subir Imagen Pesada (uploadImages - múltiples filtros)
+POST {{baseUrl}}/node HTTP/1.1
+Content-Type: text/xml; charset=utf-8
+Authorization: Bearer {{token}}
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:enf="http://node.soap.model.server.enfok/">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <enf:uploadImages>
+         <!-- Imagen PNG 1x1 en Base64 -->
+         <imageData>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=</imageData>
+         <fileName>foto_pesada.png</fileName>
+         <!-- blur(1.30) + ocr(3.20) + inference(3.80) = 8.30 total -->
+         <transformations>
+            <name>blur</name>
+         </transformations>
+         <transformations>
+            <name>ocr</name>
+         </transformations>
+         <transformations>
+            <name>inference</name>
+         </transformations>
+      </enf:uploadImages>
+   </soapenv:Body>
+</soapenv:Envelope>
+
 ### =========================================================================
 ###  [ 3 ] USER ENDPOINT (/user) - PROTEGIDO (REQUIERE TOKEN)
 ### =========================================================================

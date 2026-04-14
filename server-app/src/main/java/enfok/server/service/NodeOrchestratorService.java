@@ -23,6 +23,9 @@ public class NodeOrchestratorService implements NodeOrchestrator {
     @Inject
     private NodeLoadBalancer loadBalancer;
 
+    @Inject
+    private TaskQueue taskQueue;
+
     @Override
     public boolean createNode(String token, Node data) throws NotFoundException, InfrastructureOfflineException {
         if (token == null || token.isEmpty()){
@@ -93,12 +96,12 @@ public class NodeOrchestratorService implements NodeOrchestrator {
         }
         
         List<Node> availableNodes = nodeRepository.getAllNodes(token);
-        Node selectedNode = loadBalancer.selectNodeToProcess(availableNodes);
         
         Batches result = nodeRepository.uploadImages(token, imageData, fileName, transformations, parameters);
         if (result == null){
             throw new NotFoundException("No se proces\u00F3 y no se gener\u00F3 el registro de Batch.");
         }
+    
         return result;
     }
 

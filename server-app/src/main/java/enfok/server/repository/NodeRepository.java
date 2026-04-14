@@ -14,17 +14,23 @@ import enfok.server.ports.adapter.NodeRepositoryInterface;
 import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
+import enfok.server.model.entity.bd.TransformationType;
 import enfok.server.model.entity.bd.Batches;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
+import enfok.server.service.TaskQueue;
+
 @ApplicationScoped
 public class NodeRepository implements NodeRepositoryInterface {
 
     @Inject
     Config config;
+
+    @Inject
+    TaskQueue taskQueue;
 
     @Inject
     NetworkValidator networkValidator;
@@ -100,15 +106,53 @@ public class NodeRepository implements NodeRepositoryInterface {
 
     @Override
     public Batches uploadImages(String token, byte[] imageData, String fileName, ArrayList<Transformation> transformations, ArrayList<Transformation> parameters) throws NotFoundException, InfrastructureOfflineException {
+        Batches batch = new Batches();
+        
         if (config.isMockServices()) {
-            Batches batch = new Batches();
             batch.setId(1);
             batch.setStatusId(2);
-            return batch;
+        } else {
+            validateServer();
+            // TODO: Lógica real de HTTP POST hacia la DB o Backend real
+            batch.setId(1); 
+            batch.setStatusId(2);
         }
 
-        validateServer();
-        return new Batches();
+        // --- Encolamiento Asíncrono ---
+        // Estimamos un peso basado en el nombre de cada transformación
+        double taskWeight = 0.0;
+        if (transformations != null && !transformations.isEmpty()) {
+            for (Transformation trans : transformations) {
+                taskWeight += TransformationType.getWeightByName(trans.getName());
+            }
+        } else {
+            taskWeight = 1.0; // Mínimo default si la lista viene vacía
+        }
+        
+        int realWidth = 1024; 
+        int realHeight = 768; 
+        if (imageData != null && imageData.length > 0) {
+            try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(imageData)) {
+                java.awt.image.BufferedImage bImage = javax.imageio.ImageIO.read(bais);
+                if (bImage != null) {
+                    realWidth = bImage.getWidth();
+                    realHeight = bImage.getHeight();
+                }
+            } catch (Exception ignored) {
+                // En caso de que el byte[] no sea una imagen leíble, conserva defaults
+            }
+        }
+        
+        taskQueue.addNewImageTask(String.valueOf(batch.getId()), realWidth, realHeight, taskWeight);
+        
+        System.out.println("====== TAREA ENCOLADA ======");
+        System.out.println("BATCH ID     : " + batch.getId());
+        System.out.println("DIMENSIONES  : " + realWidth + "x" + realHeight + "px");
+        System.out.println("PESO TOTAL   : " + taskWeight);
+        System.out.println("ARCHIVO      : " + fileName);
+        System.out.println("============================");
+
+        return batch;
     }
 
     @Override
