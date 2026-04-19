@@ -3,6 +3,7 @@ package enfok.server.service;
 import enfok.server.ports.port.NodeOrchestrator;
 import enfok.server.ports.adapter.NodeRepositoryInterface;
 import enfok.server.utility.NodeLoadBalancer;
+import enfok.server.utility.TaskQueue;
 import java.util.ArrayList;
 import java.util.List;
 import enfok.server.model.entity.bd.Node;
@@ -22,6 +23,9 @@ public class NodeOrchestratorService implements NodeOrchestrator {
 
     @Inject
     private NodeLoadBalancer loadBalancer;
+
+    @Inject
+    private TaskQueue taskQueue;
 
     @Override
     public boolean createNode(String token, Node data) throws NotFoundException, InfrastructureOfflineException {
@@ -93,12 +97,12 @@ public class NodeOrchestratorService implements NodeOrchestrator {
         }
         
         List<Node> availableNodes = nodeRepository.getAllNodes(token);
-        Node selectedNode = loadBalancer.selectNodeToProcess(availableNodes);
         
         Batches result = nodeRepository.uploadImages(token, imageData, fileName, transformations, parameters);
         if (result == null){
             throw new NotFoundException("No se proces\u00F3 y no se gener\u00F3 el registro de Batch.");
         }
+    
         return result;
     }
 
