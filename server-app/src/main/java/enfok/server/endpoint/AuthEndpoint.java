@@ -12,6 +12,8 @@ import jakarta.xml.ws.WebServiceContext;
 import jakarta.xml.ws.handler.MessageContext;
 import java.util.List;
 import java.util.Map;
+import enfok.server.model.entity.dto.auth.LoginResponse;
+import enfok.server.model.entity.dto.auth.ValidateResponse;
 import enfok.server.utility.TokenMapper;
 
 /**
@@ -35,11 +37,11 @@ public class AuthEndpoint implements apiSoapAuthDb {
      * Inicia sesión verificando credenciales en el servidor subyacente.
      * @param email Correo electrónico en texto plano.
      * @param pwd Contraseña en texto plano.
-     * @return Token de Autorización si las credenciales son válidas.
+     * @return Objeto LoginResponse con Token y RoleID.
      * @throws NotFoundException Si las credenciales no válidas.
      */
     @Override
-    public String logIn(String email, String pwd) throws NotFoundException {
+    public LoginResponse logIn(String email, String pwd) throws NotFoundException {
         try {
             return authOrchestator.logIn(email, pwd);
         } catch (InfrastructureOfflineException e) {
@@ -57,9 +59,9 @@ public class AuthEndpoint implements apiSoapAuthDb {
      * @throws NotFoundException Si el usuario ya existe o campos denegados.
      */
     @Override
-    public boolean register(String email, String password, String name, String lastName) throws NotFoundException {
+    public boolean register(String email, String password, String username, int role_id) throws NotFoundException {
         try {
-            return authOrchestator.signUp(email, password, name, lastName);
+            return authOrchestator.signUp(email, password, username, role_id);
         } catch (InfrastructureOfflineException e) {
             throw new RuntimeException("Servicio de autenticación no disponible", e);
         }
@@ -80,16 +82,32 @@ public class AuthEndpoint implements apiSoapAuthDb {
     }
 
     /**
-     * Reestablece la contraseña de un usuario a partir del email.
-     * @param email Email objetivo para la sustitución.
-     * @param newPassword Nueva clave propuesta.
-     * @return true bajo éxito transaccional.
-     * @throws NotFoundException Si no ubican al remitente.
+     * Recuperación de contraseña (olvido).
      */
     @Override
     public boolean forgetPwd(String email, String newPassword) throws NotFoundException {
         try {
             return authOrchestator.forgotPassword(email, newPassword);
+        } catch (InfrastructureOfflineException e) {
+            throw new RuntimeException("Servicio de autenticación no disponible", e);
+        }
+    }
+
+    @Override
+    public boolean resetPassword(String newPassword) throws NotFoundException {
+        try {
+            String token = tokenMapper.extractToken(context);
+            return authOrchestator.resetPassword(token, newPassword);
+        } catch (InfrastructureOfflineException e) {
+            throw new RuntimeException("Servicio de autenticación no disponible", e);
+        }
+    }
+
+    @Override
+    public ValidateResponse validateToken() throws NotFoundException {
+        try {
+            String token = tokenMapper.extractToken(context);
+            return authOrchestator.validateToken(token);
         } catch (InfrastructureOfflineException e) {
             throw new RuntimeException("Servicio de autenticación no disponible", e);
         }

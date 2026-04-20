@@ -1,31 +1,44 @@
-package enfok.server.model.entity.auth;
+package enfok.server.model.entity.dto.user;
 
-import java.sql.Timestamp;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-public class User {
+public class UserProfileResponse {
     private int id;
+    
+    @JsonProperty("user_uuid")
     private String userUuid;
+    
     private String username;
     private String email;
-    private String passwordHash;
-    private int roleId; // Usamos el ID directamente como pediste para la base de datos
+    
+    @JsonProperty("role_id")
+    private int roleId;
+    
     private int status;
-    private Timestamp createdAt;
+    
+    @JsonProperty("created_at")
+    private String createdAt;
+
+    public UserProfileResponse() {}
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
+
     public String getUserUuid() { return userUuid; }
     public void setUserUuid(String userUuid) { this.userUuid = userUuid; }
+
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
+
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+
     public int getRoleId() { return roleId; }
     public void setRoleId(int roleId) { this.roleId = roleId; }
+
     public int getStatus() { return status; }
     public void setStatus(int status) { this.status = status; }
-    public Timestamp getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+
+    public String getCreatedAt() { return createdAt; }
+    public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }

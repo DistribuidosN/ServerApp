@@ -1,11 +1,5 @@
 package enfok.server.repository;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-
 import enfok.server.utility.NetworkValidator;
 import enfok.server.config.Config;
 import enfok.server.model.entity.auth.User;
@@ -13,8 +7,13 @@ import enfok.server.model.entity.auth.Activity;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
 import enfok.server.ports.adapter.UserRepositoryInterface;
+import enfok.server.model.entity.dto.user.*;
+import enfok.server.repository.client.UserServiceClient;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+import java.sql.Timestamp;
 
 @ApplicationScoped
 public class UserRepository implements UserRepositoryInterface {
@@ -25,89 +24,95 @@ public class UserRepository implements UserRepositoryInterface {
     @Inject
     NetworkValidator networkValidator;
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
-
-    private String getBaseUrl() {
-        String url = config.getAuthBd();
-        if (url != null && url.endsWith("/")) {
-            return url.substring(0, url.length() - 1);
-        }
-        return url;
-    }
+    @Inject
+    @RestClient
+    UserServiceClient userClient;
 
     @Override
     public boolean validateServer() throws InfrastructureOfflineException {
-        return networkValidator.validate(getBaseUrl());
+        return networkValidator.validate(config.getAuthBd());
     }
 
     @Override
     public User profile(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            User mockUser = new User();
-            mockUser.setUsername("Mock User Local");
-            mockUser.setStatus(1);
-            return mockUser;
-        }
-
         validateServer();
-        // Implementaci\u00F3n HTTP pendiente
-        return new User();
+        try {
+            UserProfileResponse resp = userClient.getProfile("Bearer " + token);
+            return mapToUser(resp);
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error obteniendo perfil: " + e.getMessage());
+        }
     }
 
     @Override
     public boolean updateProfile(String token, User data) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return true;
-
         validateServer();
-        // Implementaci\u00F3n HTTP pendiente
-        return true;
+        try {
+            UserUpdateRequest req = new UserUpdateRequest(data.getUsername());
+            UserUpdateResponse resp = userClient.updateProfile("Bearer " + token, req);
+            return resp != null && resp.isValid();
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error actualizando perfil: " + e.getMessage());
+        }
     }
 
     @Override
     public boolean deleteAccount(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return true;
-
         validateServer();
-        // Implementaci\u00F3n HTTP pendiente
-        return true;
+        try {
+            try (Response response = userClient.deleteAccount("Bearer " + token)) {
+                return response.getStatus() == 200;
+            }
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error eliminando cuenta: " + e.getMessage());
+        }
     }
 
     @Override
     public Activity getUserActivity(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            Activity ac = new Activity();
-            ac.setTotalBatches(15);
-            ac.setTotalImagesProcessed(105);
-            return ac;
-        }
-
         validateServer();
-        // Implementaci\u00F3n HTTP pendiente
-        return new Activity();
+        // Pendiente endpoint real si existe
+        Activity ac = new Activity();
+        ac.setTotalBatches(0);
+        return ac;
     }
 
     @Override
     public String getUserStatistics(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return "Estad\u00EDsticas Mockeadas: 10 horas procesando.";
-
         validateServer();
-        // Implementaci\u00F3n HTTP pendiente
-        return "Stad\u00EDsticas de usuario completas";
+        // Pendiente endpoint real si existe
+        return "Estadísticas no disponibles en modo real";
     }
 
     @Override
     public User searchUser(String token, String uid) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            User mockUser = new User();
-            mockUser.setUserUuid(uid);
-            mockUser.setUsername("Pesquisado Mock");
-            return mockUser;
-        }
-
         validateServer();
-        // Implementaci\u00F3n HTTP pendiente
-        return new User();
+        try {
+            // Suponemos que uid es el username para la búsqueda en este contexto
+            UserProfileResponse resp = userClient.searchUser("Bearer " + token, uid);
+            return mapToUser(resp);
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error buscando usuario: " + e.getMessage());
+        }
+    }
+
+    private User mapToUser(UserProfileResponse resp) {
+        if (resp == null) return null;
+        User user = new User();
+        user.setId(resp.getId());
+        user.setUserUuid(resp.getUserUuid());
+        user.setUsername(resp.getUsername());
+        user.setEmail(resp.getEmail());
+        user.setRoleId(resp.getRoleId());
+        user.setStatus(resp.getStatus());
+        if (resp.getCreatedAt() != null) {
+            try {
+                // Formatting date string to SQL timestamp
+                user.setCreatedAt(Timestamp.valueOf(resp.getCreatedAt().replace("T", " ").substring(0, 19)));
+            } catch (Exception e) {
+                // Handling date parsing if needed
+            }
+        }
+        return user;
     }
 }

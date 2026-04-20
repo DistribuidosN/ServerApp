@@ -15,6 +15,8 @@ import java.util.Map;
 import enfok.server.error.InvalidTokenException;
 import enfok.server.ports.port.AuthOrchestator;
 
+import enfok.server.model.entity.dto.auth.ValidateResponse;
+
 /**
  * [GUARDIÁN DE SEGURIDAD]: Interceptor de SOAP
  * 
@@ -67,7 +69,8 @@ public class TokenValidationInterceptor extends AbstractSoapInterceptor {
      */
     private boolean callExternalAuthServer(String token) {
         try {
-            return authOrchestator.validateToken(token);
+            ValidateResponse response = authOrchestator.validateToken(token);
+            return response != null && response.isValid();
         } catch (Exception e) {
             System.err.println(">>> [Seguridad] Error verificando el Token: " + e.getMessage());
             return false;

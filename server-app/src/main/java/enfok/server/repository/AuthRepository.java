@@ -1,18 +1,16 @@
 package enfok.server.repository;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
-
 import enfok.server.utility.NetworkValidator;
 import enfok.server.config.Config;
 import enfok.server.ports.adapter.AuthRepositoryInterface;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
+import enfok.server.model.entity.dto.auth.*;
+import enfok.server.repository.client.AuthServiceClient;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 @ApplicationScoped
 public class AuthRepository implements AuthRepositoryInterface {
@@ -23,17 +21,9 @@ public class AuthRepository implements AuthRepositoryInterface {
     @Inject
     NetworkValidator networkValidator;
 
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(5))
-            .build();
-
-    private String getBaseUrl() {
-        String url = config.getAuthBd();
-        if (url != null && url.endsWith("/")) {
-            return url.substring(0, url.length() - 1);
-        }
-        return url;
-    }
+    @Inject
+    @RestClient
+    AuthServiceClient authClient;
 
     @Override
     public boolean validateServer() throws InfrastructureOfflineException {
@@ -41,160 +31,131 @@ public class AuthRepository implements AuthRepositoryInterface {
     }
 
     @Override
-    public String logIn(String email, String pwd) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return "mocked-auth-token-12345";
-        
+    public LoginResponse logIn(String email, String pwd) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
-        System.out.println(">>> [AuthRepository] Ejecutando POST a /login");
-
-        String jsonPayload = String.format("{\"email\":\"%s\", \"password\":\"%s\"}", email, pwd);
+        System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/login");
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(getBaseUrl() + "/login"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-                    .build();
+            LoginRequest request = new LoginRequest(email, pwd);
+            LoginResponse response = authClient.login(request);
 
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                String body = response.body();
-                if (body.contains("token")) {
-                    return body.split("\"token\":\"")[1].split("\"")[0];
-                }
-                return "token-from-external-auth";
-            } else if (response.statusCode() == 404 || response.statusCode() == 401) {
-                throw new NotFoundException("Credenciales inv\u00E1lidas o usuario no encontrado");
-            } else {
-                throw new InfrastructureOfflineException("Auth Service devolvi\u00F3 error HTTP " + response.statusCode());
+            if (response != null) {
+                return response;
             }
-        } catch (NotFoundException e) {
-            throw e;
+            throw new NotFoundException("Respuesta vacía del servidor de autenticación");
         } catch (Exception e) {
-            throw new InfrastructureOfflineException("Error de red contactando al Auth Service: " + e.getMessage());
+            handleException(e, "logIn");
+            return null;
         }
     }
 
     @Override
-    public boolean signUp(String email, String pwd, String name, String lastName)
+    public boolean signUp(String email, String pwd, String username, int role_id)
             throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return true;
-
         validateServer();
-        System.out.println(">>> [AuthRepository] Ejecutando POST a /register");
-
-        String jsonPayload = String.format(
-                "{\"email\":\"%s\", \"password\":\"%s\", \"name\":\"%s\", \"lastName\":\"%s\"}",
-                email, pwd, name, lastName);
+        System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/register");
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(getBaseUrl() + "/register"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200 || response.statusCode() == 201) {
-                return true;
-            } else if (response.statusCode() == 409 || response.statusCode() == 404) {
-                throw new NotFoundException("El usuario ya existe (409) o validaci\u00F3n fallida (404)");
-            } else {
-                throw new InfrastructureOfflineException("Auth Service devolvi\u00F3 error HTTP " + response.statusCode());
+            RegisterRequest request = new RegisterRequest(username, pwd, email, role_id);
+            try (Response response = authClient.register(request)) {
+                if (response.getStatus() == 200 || response.getStatus() == 201) {
+                    return true;
+                }
+                handleErrorResponse(response);
+                return false;
             }
-        } catch (NotFoundException e) {
-            throw e;
         } catch (Exception e) {
-            throw new InfrastructureOfflineException("Error de red contactando al Auth Service: " + e.getMessage());
+            handleException(e, "signUp");
+            return false;
         }
     }
 
     @Override
     public boolean logOut(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return true;
-
         validateServer();
-        System.out.println(">>> [AuthRepository] Ejecutando POST a /logout con Token");
+        System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/logout");
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(getBaseUrl() + "/logout"))
-                    .header("Authorization", "Bearer " + token)
-                    .POST(HttpRequest.BodyPublishers.noBody())
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                return true;
-            } else if (response.statusCode() == 404 || response.statusCode() == 401) {
-                throw new NotFoundException("Token inv\u00E1lido o expirado");
-            } else {
-                throw new InfrastructureOfflineException("Auth Service devolvi\u00F3 error HTTP " + response.statusCode());
+            try (Response response = authClient.logout("Bearer " + token)) {
+                if (response.getStatus() == 200) {
+                    return true;
+                }
+                handleErrorResponse(response);
+                return false;
             }
-        } catch (NotFoundException e) {
-            throw e;
         } catch (Exception e) {
-            throw new InfrastructureOfflineException("Error de red contactando al Auth Service: " + e.getMessage());
+            handleException(e, "logOut");
+            return false;
         }
     }
 
     @Override
     public boolean forgotPassword(String email, String newPassword)
             throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return true;
-
         validateServer();
-        System.out.println(">>> [AuthRepository] Ejecutando PUT a /forgot-password");
-
-        String jsonPayload = String.format("{\"email\":\"%s\", \"newPassword\":\"%s\"}", email, newPassword);
+        System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/forget-password");
 
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(getBaseUrl() + "/forgot-password"))
-                    .header("Content-Type", "application/json")
-                    .PUT(HttpRequest.BodyPublishers.ofString(jsonPayload))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                return true;
-            } else if (response.statusCode() == 404) {
-                throw new NotFoundException("Usuario no encontrado (404)");
-            } else {
-                throw new InfrastructureOfflineException("Auth Service devolvi\u00F3 error HTTP " + response.statusCode());
+            ForgetPasswordRequest request = new ForgetPasswordRequest(email, newPassword);
+            try (Response response = authClient.forgetPassword(request)) {
+                if (response.getStatus() == 200) {
+                    return true;
+                }
+                handleErrorResponse(response);
+                return false;
             }
-        } catch (NotFoundException e) {
-            throw e;
         } catch (Exception e) {
-            throw new InfrastructureOfflineException("Error de red contactando al Auth Service: " + e.getMessage());
+            handleException(e, "forgotPassword");
+            return false;
         }
     }
 
     @Override
-    public boolean validateToken(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) return true;
-
+    public boolean resetPassword(String token, String newPassword)
+            throws NotFoundException, InfrastructureOfflineException {
         validateServer();
+        System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/reset-password");
+
         try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(getBaseUrl() + "/validate-token"))
-                    .header("Authorization", "Bearer " + token)
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                return true;
-            } else {
+            ResetPasswordRequest request = new ResetPasswordRequest(newPassword);
+            try (Response response = authClient.resetPassword("Bearer " + token, request)) {
+                if (response.getStatus() == 200) {
+                    return true;
+                }
+                handleErrorResponse(response);
                 return false;
             }
         } catch (Exception e) {
+            handleException(e, "resetPassword");
+            return false;
+        }
+    }
+
+    @Override
+    public ValidateResponse validateToken(String token) throws NotFoundException, InfrastructureOfflineException {
+        validateServer();
+        try {
+            return authClient.validate(token);
+        } catch (Exception e) {
             throw new InfrastructureOfflineException("Error validando token en la red: " + e.getMessage());
         }
+    }
+
+    private void handleErrorResponse(Response response) throws NotFoundException, InfrastructureOfflineException {
+        int status = response.getStatus();
+        if (status == 404 || status == 401 || status == 409) {
+            throw new NotFoundException("Acción fallida: código " + status);
+        } else {
+            throw new InfrastructureOfflineException("Auth Service devolvió error HTTP " + status);
+        }
+    }
+
+    private void handleException(Exception e, String method) throws NotFoundException, InfrastructureOfflineException {
+        if (e instanceof NotFoundException)
+            throw (NotFoundException) e;
+        if (e.getCause() instanceof NotFoundException)
+            throw (NotFoundException) e.getCause();
+        throw new InfrastructureOfflineException(
+                "Error en " + method + " contactando al Auth Service: " + e.getMessage());
     }
 }

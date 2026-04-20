@@ -4,6 +4,8 @@ import enfok.server.ports.port.AuthOrchestator;
 import enfok.server.ports.adapter.AuthRepositoryInterface;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
+import enfok.server.model.entity.dto.auth.LoginResponse;
+import enfok.server.model.entity.dto.auth.ValidateResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -14,28 +16,28 @@ public class AuthOrchestatorService implements AuthOrchestator {
     private AuthRepositoryInterface authRepository;
 
     @Override
-    public String logIn(String email, String pwd) throws NotFoundException, InfrastructureOfflineException {
+    public LoginResponse logIn(String email, String pwd) throws NotFoundException, InfrastructureOfflineException {
         if (email == null || email.trim().isEmpty() || pwd == null || pwd.trim().isEmpty()) {
             throw new NotFoundException("Credenciales en blanco o faltantes");
         }
         String emailE = email.toLowerCase();
         
-        String result = authRepository.logIn(emailE, pwd);
-        if (result == null || result.isEmpty()) {
+        LoginResponse response = authRepository.logIn(emailE, pwd);
+        if (response == null || response.getToken() == null || response.getToken().isEmpty()) {
             throw new NotFoundException("Credenciales inválidas o el usuario no existe");
         }
-        return result;
+        return response;
     }
 
     @Override
-    public boolean signUp(String email, String pwd, String name, String lastName) throws NotFoundException, InfrastructureOfflineException {
+    public boolean signUp(String email, String pwd, String username, int role_id) throws NotFoundException, InfrastructureOfflineException {
         if (email == null || email.trim().isEmpty() || pwd == null || pwd.trim().isEmpty()) {
-            throw new NotFoundException("Credenciales o datos obligatorios est\u00E1n en blanco");
+            throw new NotFoundException("Credenciales o datos obligatorios están en blanco");
         }
         
-        boolean result = authRepository.signUp(email.toLowerCase(), pwd, name.toLowerCase(), lastName.toLowerCase());
+        boolean result = authRepository.signUp(email.toLowerCase(), pwd, username.toLowerCase(), role_id);
         if (!result) {
-            throw new NotFoundException("El usuario ya existe o los datos son inv\u00E1lidos");
+            throw new NotFoundException("El usuario ya existe o los datos son inválidos");
         }
         return result;
     }
@@ -43,18 +45,18 @@ public class AuthOrchestatorService implements AuthOrchestator {
     @Override
     public boolean logOut(String token) throws NotFoundException, InfrastructureOfflineException {
         if (token == null || token.trim().isEmpty()) {
-            throw new NotFoundException("Falta Token de autorizaci\u00F3n");
+            throw new NotFoundException("Falta Token de autorización");
         }
         
         boolean result = authRepository.logOut(token);
         if (!result) {
-            throw new NotFoundException("Fallo al cerrar sesi\u00F3n, token inv\u00E1lido");
+            throw new NotFoundException("Fallo al cerrar sesión, token inválido");
         }
         return result;
     }
 
     @Override
-    public boolean validateToken(String token) throws NotFoundException, InfrastructureOfflineException {
+    public ValidateResponse validateToken(String token) throws NotFoundException, InfrastructureOfflineException {
         if (token == null || token.trim().isEmpty()) {
             throw new NotFoundException("Falta Token");
         }
@@ -64,12 +66,25 @@ public class AuthOrchestatorService implements AuthOrchestator {
     @Override
     public boolean forgotPassword(String email, String newPassword) throws NotFoundException, InfrastructureOfflineException {
         if (email == null || email.trim().isEmpty() || newPassword == null || newPassword.trim().isEmpty()) {
-            throw new NotFoundException("Email o contrase\u00F1a no proporcionados");
+            throw new NotFoundException("Email o contraseña no proporcionados");
         }
         
         boolean result = authRepository.forgotPassword(email.toLowerCase(), newPassword);
         if (!result) {
-            throw new NotFoundException("Usuario no encontrado para recuperar contrase\u00F1a");
+            throw new NotFoundException("Usuario no encontrado para recuperar contraseña");
+        }
+        return result;
+    }
+
+    @Override
+    public boolean resetPassword(String token, String newPassword) throws NotFoundException, InfrastructureOfflineException {
+        if (token == null || token.trim().isEmpty() || newPassword == null || newPassword.trim().isEmpty()) {
+            throw new NotFoundException("Token o nueva contraseña no proporcionados");
+        }
+        
+        boolean result = authRepository.resetPassword(token, newPassword);
+        if (!result) {
+            throw new NotFoundException("Error al resetear contraseña (token inválido o expirado)");
         }
         return result;
     }

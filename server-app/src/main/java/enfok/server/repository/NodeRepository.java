@@ -59,55 +59,30 @@ public class NodeRepository implements NodeRepositoryInterface {
 
     @Override
     public boolean createNode(String token, Node data) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices())
-            return true;
-
         validateServer();
         return true;
     }
 
     @Override
     public boolean updateNode(String token, Node data) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices())
-            return true;
-
         validateServer();
         return true;
     }
 
     @Override
     public boolean deleteNode(String token, String nodeId) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices())
-            return true;
-
         validateServer();
         return true;
     }
 
     @Override
     public Node getNode(String token, String nodeId) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            Node n = new Node();
-            n.setNodeId(nodeId);
-            n.setHost("localhost:8080");
-            return n;
-        }
-
         validateServer();
         return new Node();
     }
 
     @Override
     public List<Node> getAllNodes(String token) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            List<Node> nodes = new ArrayList<>();
-            Node n1 = new Node();
-            n1.setNodeId("local-node-1");
-            n1.setHost("127.0.0.1:9091");
-            nodes.add(n1);
-            return nodes;
-        }
-
         validateServer();
         return new ArrayList<>();
     }
@@ -116,18 +91,13 @@ public class NodeRepository implements NodeRepositoryInterface {
     public Batches uploadImages(String token, byte[] imageData, String fileName,
             ArrayList<Transformation> transformations, ArrayList<Transformation> parameters)
             throws NotFoundException, InfrastructureOfflineException {
+        validateServer();
         Batches batch = new Batches();
         Random rand = new Random();
 
-        if (config.isMockServices()) {
-            batch.setId(rand.nextInt(1000000)); // De 0 a 999,999
-            batch.setStatusId(1);
-        } else {
-            validateServer();
-            // TODO: Lógica real de HTTP POST hacia la DB o Backend real
-            batch.setId(1);
-            batch.setStatusId(2);
-        }
+        // TODO: Lógica real de HTTP POST hacia la DB o Backend real
+        batch.setId(rand.nextInt(1000000)); // De 0 a 999,999
+        batch.setStatusId(1);
 
         // --- 1. Analizar Transformaciones y Calcular Peso ---
         ImageTaskHelper.TransformationAnalysis analysis = imageHelper.analyzeTransformations(transformations);
@@ -140,7 +110,6 @@ public class NodeRepository implements NodeRepositoryInterface {
         int realHeight = metadata.height();
         String imageFormat = metadata.format();
 
-        // (Opcional) Puedes imprimir el formato para verificar
         System.out.println("Formato detectado: " + imageFormat);
 
         // --- 3. ¡Nuevo Encolamiento con todos los datos! ---
@@ -150,12 +119,12 @@ public class NodeRepository implements NodeRepositoryInterface {
                 realHeight,
                 imageFormat,
                 taskWeight,
-                imageData, // Pasamos los bytes puros
-                filterNames, // Pasamos la lista de filtros ["blur", "ocr"]
-                fileName // Pasamos el nombre del archivo
+                imageData,
+                filterNames,
+                fileName
         );
 
-        // --- 4. Logs actualizados para ver qué está entrando ---
+        // --- 4. Logs ---
         System.out.println("====== TAREA ENCOLADA ======");
         System.out.println("BATCH ID     : " + batch.getId());
         System.out.println("DIMENSIONES  : " + realWidth + "x" + realHeight + "px");
@@ -170,15 +139,6 @@ public class NodeRepository implements NodeRepositoryInterface {
 
     @Override
     public Batches uploadImagesBatch(String token, ArrayList<Image> images, ArrayList<Transformation> transformations, ArrayList<Transformation> parameters) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            Batches batch = new Batches();
-            Random rand = new Random();
-            batch.setId(rand.nextInt(1000000));
-
-            batch.setStatusId(1);
-            return batch;
-        }
-
         validateServer();
         return new Batches();
     }
@@ -186,18 +146,12 @@ public class NodeRepository implements NodeRepositoryInterface {
     @Override
     public String getBatchStatus(String token, String batchId)
             throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices())
-            return "FINISHED_MOCK";
-
         validateServer();
         return "PENDING";
     }
 
     @Override
     public String getUploadStatus(String token, String jobId) throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices())
-            return "UPLOADED_MOCK";
-
         validateServer();
         return "UPLOADING";
     }
@@ -205,11 +159,8 @@ public class NodeRepository implements NodeRepositoryInterface {
     @Override
     public byte[] downloadBatchResult(String token, String jobId)
             throws NotFoundException, InfrastructureOfflineException {
-        if (config.isMockServices()) {
-            return new byte[] { 0x4D, 0x4F, 0x43, 0x4B }; // MOCK
-        }
-
         validateServer();
         return new byte[0];
     }
 }
+
