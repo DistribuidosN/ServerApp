@@ -11,9 +11,16 @@ import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Batches;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
+import enfok.server.model.entity.dto.node.UploadBatchRequest;
+import enfok.server.model.entity.dto.node.UploadBatchResult;
+import enfok.server.model.entity.dto.node.BatchStatusResult;
+import enfok.server.model.entity.dto.node.BatchProcessedResult;
 import enfok.server.error.NotFoundException;
 
-@WebService
+/**
+ * Interfaz del Servicio SOAP con el contrato WSDL.
+ */
+@WebService(targetNamespace = "http://node.soap.model.server.enfok/")
 public interface apiSoapNode {
 
     @WebMethod
@@ -41,6 +48,24 @@ public interface apiSoapNode {
     public Batches uploadImagesBatch(@WebParam(name = "images") ArrayList<Image> images, 
                                    @WebParam(name = "transformations") ArrayList<Transformation> transformations, 
                                    @WebParam(name = "parameters") ArrayList<Transformation> parameters) throws NotFoundException;
+
+    /**
+     * Recibe un lote de imágenes para procesamiento asíncrono.
+     */
+    @WebMethod
+    public UploadBatchResult uploadBatch(@WebParam(name = "request") UploadBatchRequest request) throws NotFoundException;
+
+    /**
+     * Consulta el estado y progreso de un lote.
+     */
+    @WebMethod
+    public BatchStatusResult getBatchStatusV2(@WebParam(name = "jobId") String jobId) throws NotFoundException;
+
+    /**
+     * Obtiene los resultados de un lote finalizado.
+     */
+    @WebMethod
+    public BatchProcessedResult getBatchResults(@WebParam(name = "jobId") String jobId) throws NotFoundException;
 
     @WebMethod
     public String getBatchStatus(@WebParam(name = "batchId") String batchId) throws NotFoundException;

@@ -7,15 +7,23 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.Base64;
 
 import enfok.server.utility.NetworkValidator;
 import enfok.server.config.Config;
 import enfok.server.ports.adapter.NodeRepositoryInterface;
+import enfok.server.ports.adapter.MessageQueueProducer;
 import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
 import enfok.server.model.entity.bd.TransformationType;
 import enfok.server.model.entity.bd.Batches;
+import enfok.server.model.entity.dto.node.UploadBatchRequest;
+import enfok.server.model.entity.dto.node.UploadBatchResult;
+import enfok.server.model.entity.dto.node.ImageItemBatch;
+import enfok.server.model.entity.dto.node.BatchStatusResult;
+import enfok.server.model.entity.dto.node.BatchProcessedResult;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,7 +31,6 @@ import jakarta.inject.Inject;
 
 import enfok.server.utility.TaskQueue;
 import enfok.server.utility.ImageTaskHelper;
-import java.util.Random;
 
 @ApplicationScoped
 public class NodeRepository implements NodeRepositoryInterface {
@@ -88,6 +95,81 @@ public class NodeRepository implements NodeRepositoryInterface {
     }
 
     @Override
+    public UploadBatchResult uploadBatch(String token, UploadBatchRequest request) throws NotFoundException, InfrastructureOfflineException {
+        validateServer();
+
+        // 1. TODO: Insertar registro del Batch en la BD (PENDING)
+        // String batchUuid = request.getId();
+
+        // 2. Procesar cada imagen del lote con la misma lógica de uploadImages
+        for (ImageItemBatch imageItem : request.getImages()) {
+            
+            // Decodificar Base64 a bytes
+            byte[] imageData = Base64.getDecoder().decode(imageItem.getBase64());
+
+            // --- A. Calcular Peso de Transformaciones (Filtros) ---
+            double taskWeight = 0;
+            for (String filterName : request.getFilters()) {
+                taskWeight += TransformationType.getWeightByName(filterName);
+            }
+            if (taskWeight <= 0) taskWeight = 1.0;
+
+            // --- B. Extraer Metadatos de la Imagen ---
+            ImageTaskHelper.ImageMetadata metadata = imageHelper.extractMetadata(imageData);
+
+            // --- C. Encolar en la TaskQueue principal (Lógica de uploadImages) ---
+            taskQueue.addNewImageTask(
+                    imageItem.getId(),
+                    metadata.width(),
+                    metadata.height(),
+                    metadata.format(),
+                    taskWeight,
+                    imageData,
+                    request.getFilters(),
+                    imageItem.getName()
+            );
+
+            // --- D. TODO: Insertar registro de la imagen asociada al Batch en BD ---
+            // db.insertBatchImage(request.getId(), imageItem.getId(), ...);
+        }
+
+        return new UploadBatchResult(request.getId(), "ACCEPTED", "El lote ha sido recibido y sus imágenes han sido encoladas para procesamiento.");
+    }
+
+    @Override
+    public BatchStatusResult getBatchStatusV2(String jobId) throws NotFoundException {
+        // Lógica requerida: Consultar cuántas imágenes corresponden al mismo jobId
+        // y calcular porcentajes y estado.
+        
+        // TODO: Consultar en la base de datos la totalidad y procesados para el jobId
+        // int total = db.countImagesByBatch(jobId);
+        // int processed = db.countProcessedImagesByBatch(jobId);
+        
+        int total = 10; // Mock
+        int processed = 5; // Mock
+        double percentage = (double) processed / total * 100;
+        String status = (processed == total) ? "COMPLETED" : "PROCESSING";
+
+        return new BatchStatusResult(jobId, status, percentage, total, processed);
+    }
+
+    @Override
+    public BatchProcessedResult getBatchProcessedImages(String jobId) throws NotFoundException {
+        // Primero verificamos el estado (Regla de negocio: Solo si está COMPLETED)
+        BatchStatusResult statusInfo = getBatchStatusV2(jobId);
+        
+        if (!"COMPLETED".equals(statusInfo.getStatus())) {
+            throw new NotFoundException("El lote " + jobId + " aún no se ha completado.");
+        }
+
+        // TODO: Consultar todas las imágenes procesadas con su Base64 de la BD
+        // List<ImageItemBatch> results = db.getProcessedImages(jobId);
+        
+        List<ImageItemBatch> results = new ArrayList<>();
+        return new BatchProcessedResult(jobId, results);
+    }
+
+    @Override
     public Batches uploadImages(String token, byte[] imageData, String fileName,
             ArrayList<Transformation> transformations, ArrayList<Transformation> parameters)
             throws NotFoundException, InfrastructureOfflineException {
@@ -144,8 +226,7 @@ public class NodeRepository implements NodeRepositoryInterface {
     }
 
     @Override
-    public String getBatchStatus(String token, String batchId)
-            throws NotFoundException, InfrastructureOfflineException {
+    public String getBatchStatus(String token, String batchId) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
         return "PENDING";
     }
@@ -157,10 +238,8 @@ public class NodeRepository implements NodeRepositoryInterface {
     }
 
     @Override
-    public byte[] downloadBatchResult(String token, String jobId)
-            throws NotFoundException, InfrastructureOfflineException {
+    public byte[] downloadBatchResult(String token, String jobId) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
         return new byte[0];
     }
 }
-
