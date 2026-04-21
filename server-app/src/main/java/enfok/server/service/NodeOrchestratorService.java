@@ -10,6 +10,10 @@ import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
 import enfok.server.model.entity.bd.Batches;
+import enfok.server.model.entity.dto.node.UploadBatchRequest;
+import enfok.server.model.entity.dto.node.UploadBatchResult;
+import enfok.server.model.entity.dto.node.BatchStatusResult;
+import enfok.server.model.entity.dto.node.BatchProcessedResult;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -96,8 +100,6 @@ public class NodeOrchestratorService implements NodeOrchestrator {
             throw new NotFoundException("ImageData est\u00E1 vac\u00EDo.");
         }
         
-        List<Node> availableNodes = nodeRepository.getAllNodes(token);
-        
         Batches result = nodeRepository.uploadImages(token, imageData, fileName, transformations, parameters);
         if (result == null){
             throw new NotFoundException("No se proces\u00F3 y no se gener\u00F3 el registro de Batch.");
@@ -122,6 +124,59 @@ public class NodeOrchestratorService implements NodeOrchestrator {
         if (result == null){
             throw new NotFoundException("Error al estructurar el lote (Batch nulo).");
         }
+        return result;
+    }
+
+    @Override
+    public UploadBatchResult uploadBatch(String token, UploadBatchRequest request) throws NotFoundException, InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) {
+            throw new NotFoundException("Token faltante.");
+        }
+        if (request == null || request.getId() == null) {
+            throw new NotFoundException("El cuerpo de la peticion del lote es invalido.");
+        }
+        
+        UploadBatchResult result = nodeRepository.uploadBatch(token, request);
+        
+        if (result == null) {
+            throw new NotFoundException("No se pudo iniciar el procesamiento del lote.");
+        }
+        
+        return result;
+    }
+
+    @Override
+    public BatchStatusResult getBatchStatusV2(String token, String jobId) throws NotFoundException, InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) {
+            throw new NotFoundException("Token de autorizaci\u00F3n inv\u00E1lido.");
+        }
+        
+        BatchStatusResult result = nodeRepository.getBatchStatusV2(jobId);
+        
+        if (result == null) {
+            throw new NotFoundException("No se encontr\u00F3 informaci\u00F3n para el lote: " + jobId);
+        }
+        
+        return result;
+    }
+
+    @Override
+    public BatchProcessedResult getBatchResults(String token, String jobId) throws NotFoundException, InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) {
+            throw new NotFoundException("Token de autorizaci\u00F3n requerido.");
+        }
+        
+        // Regla de negocio: Validar que esté completado antes de pedir resultados
+        BatchStatusResult status = nodeRepository.getBatchStatusV2(jobId);
+        if (status == null || !"COMPLETED".equals(status.getStatus())) {
+            throw new NotFoundException("Los resultados no est\u00E1n listos o el lote no existe.");
+        }
+        
+        BatchProcessedResult result = nodeRepository.getBatchProcessedImages(jobId);
+        if (result == null) {
+            throw new NotFoundException("Error al recuperar los resultados del lote.");
+        }
+        
         return result;
     }
 
