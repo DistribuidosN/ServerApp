@@ -76,7 +76,8 @@ public class AuthRepository implements AuthRepositoryInterface {
         System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/logout");
 
         try {
-            try (Response response = authClient.logout("Bearer " + token)) {
+            String authHeader = (token != null && token.startsWith("Bearer ")) ? token : "Bearer " + token;
+            try (Response response = authClient.logout(authHeader)) {
                 if (response.getStatus() == 200) {
                     return true;
                 }
@@ -117,8 +118,9 @@ public class AuthRepository implements AuthRepositoryInterface {
         System.out.println(">>> [AuthRepository] Ejecutando POST a /auth/reset-password");
 
         try {
+            String authHeader = (token != null && token.startsWith("Bearer ")) ? token : "Bearer " + token;
             ResetPasswordRequest request = new ResetPasswordRequest(newPassword);
-            try (Response response = authClient.resetPassword("Bearer " + token, request)) {
+            try (Response response = authClient.resetPassword(authHeader, request)) {
                 if (response.getStatus() == 200) {
                     return true;
                 }
@@ -134,8 +136,13 @@ public class AuthRepository implements AuthRepositoryInterface {
     @Override
     public ValidateResponse validateToken(String token) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
+        
+        // REGLA SENIOR: Normalizar siempre el header para cumplir el contrato con Go
+        String authHeader = (token != null && token.startsWith("Bearer ")) ? token : "Bearer " + token;
+        
+        System.out.println(">>> [AuthRepository] Validando Token con Auth Server...");
         try {
-            return authClient.validate(token);
+            return authClient.validate(authHeader);
         } catch (Exception e) {
             throw new InfrastructureOfflineException("Error validando token en la red: " + e.getMessage());
         }

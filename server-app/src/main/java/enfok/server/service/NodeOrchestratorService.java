@@ -18,6 +18,11 @@ import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import enfok.server.model.entity.bd.LogRecord;
+import enfok.server.model.entity.bd.NodeMetricsBd;
+import enfok.server.ports.adapter.BdRepositoryInterface;
+import enfok.server.ports.port.AuthOrchestator;
+import enfok.server.model.entity.dto.auth.ValidateResponse;
 
 @ApplicationScoped
 public class NodeOrchestratorService implements NodeOrchestrator {
@@ -30,6 +35,9 @@ public class NodeOrchestratorService implements NodeOrchestrator {
 
     @Inject
     private TaskQueue taskQueue;
+
+    @Inject
+    private AuthOrchestator authOrchestator;
 
     @Override
     public boolean createNode(String token, Node data) throws NotFoundException, InfrastructureOfflineException {
@@ -132,11 +140,16 @@ public class NodeOrchestratorService implements NodeOrchestrator {
         if (token == null || token.isEmpty()) {
             throw new NotFoundException("Token faltante.");
         }
+        ValidateResponse  resToken  = authOrchestator.validateToken(token);
+        if (resToken == null || !resToken.isValid()) {
+            throw new NotFoundException("Token de autorizaci\u00F3n inv\u00E1lido.");
+        }
+        String userUuid = resToken.getUserUuid();
         if (request == null || request.getId() == null) {
             throw new NotFoundException("El cuerpo de la peticion del lote es invalido.");
         }
         
-        UploadBatchResult result = nodeRepository.uploadBatch(token, request);
+        UploadBatchResult result = nodeRepository.uploadBatch(userUuid, request);
         
         if (result == null) {
             throw new NotFoundException("No se pudo iniciar el procesamiento del lote.");
@@ -214,5 +227,19 @@ public class NodeOrchestratorService implements NodeOrchestrator {
             throw new NotFoundException("El job " + jobId + " no cuenta con resultados o no existe.");
         }
         return result;
+    }
+    @Inject
+    private BdRepositoryInterface bdRepository;
+
+    @Override
+    public List<LogRecord> getLogsByImage(String token, String imageUuid) throws NotFoundException, InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) throw new NotFoundException("Token faltante");
+        return bdRepository.getLogsByImage(imageUuid);
+    }
+
+    @Override
+    public List<NodeMetricsBd> getMetricsByNode(String token, String nodeId) throws NotFoundException, InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) throw new NotFoundException("Token faltante");
+        return bdRepository.getMetricsByNode(nodeId);
     }
 }

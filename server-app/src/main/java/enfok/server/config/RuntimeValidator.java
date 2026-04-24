@@ -24,7 +24,7 @@ public class RuntimeValidator {
         
         checkService("Auth Database API", config.getAuthBd());
         checkService("Core BD System API", config.getBdSystem());
-        checkService("Node Processor System", config.getNode());
+
         
         System.out.println("==========================================");
     }

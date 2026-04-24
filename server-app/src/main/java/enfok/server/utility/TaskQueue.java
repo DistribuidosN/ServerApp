@@ -30,10 +30,11 @@ public class TaskQueue {
     // Encolar
     // ─────────────────────────────────────────────────────────────────────────
     public void addNewImageTask(String id, int width, int height, String imageFormat, double costMultiplier,
-            byte[] imageBytes, List<String> filters, String filename) {
+            byte[] imageBytes, List<enfok.server.model.entity.dto.node.TransformationItem> filters, String filename) {
         queue.offer(new ImageQueue(id, width, height, imageFormat, costMultiplier, imageBytes, filters, filename));
         statusMap.put(id, "QUEUED");
     }
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // Desencolar
@@ -61,10 +62,22 @@ public class TaskQueue {
     // ─────────────────────────────────────────────────────────────────────────
     // Heartbeats y Monitoreo de Nodos
     // ─────────────────────────────────────────────────────────────────────────
+    /** 
+     * Registra o actualiza un nodo en memoria. 
+     * Retorna "REGISTERED" si es la primera vez que lo vemos, o "UPDATED" si ya existía.
+     */
+    public String registerNode(String nodeId, String ip, int port, boolean accepting) {
+        boolean exists = lastSeen.containsKey(nodeId);
+        lastSeen.put(nodeId, System.currentTimeMillis());
+        nodeAccepts.put(nodeId, accepting);
+        return exists ? "UPDATED" : "REGISTERED";
+    }
+
     public void heartbeat(String nodeId, String ip, boolean accepting) {
         lastSeen.put(nodeId, System.currentTimeMillis());
         nodeAccepts.put(nodeId, accepting);
     }
+
 
     public boolean isAlive(String nodeId, long maxAgeMs) {
         Long t = lastSeen.get(nodeId);

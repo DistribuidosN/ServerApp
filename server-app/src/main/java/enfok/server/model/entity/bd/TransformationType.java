@@ -1,32 +1,45 @@
 package enfok.server.model.entity.bd;
 
 public enum TransformationType {
-    FLIP(1, "flip", 0.20),
-    CROP(2, "crop", 0.25),
-    GRAYSCALE(3, "grayscale", 0.35),
-    BRIGHTNESS(4, "brightness", 0.60),
-    CONTRAST(5, "contrast", 0.60),
-    BRIGHTNESS_CONTRAST(6, "brightness_contrast", 0.60),
-    ROTATE(7, "rotate", 0.65),
-    RESIZE(8, "resize", 0.95),
-    SHARPEN(9, "sharpen", 1.00),
-    WATERMARK(10, "watermark", 1.10),
-    WATERMARK_TEXT(11, "watermark_text", 1.10),
-    BLUR(12, "blur", 1.30),
-    OCR(13, "ocr", 3.20),
-    INFERENCE(14, "inference", 3.80),
-    
-    // Convertidores
-    FORMAT_BMP(15, "format:bmp", 0.255),
-    FORMAT_JPG(16, "format:jpg", 0.300),
-    FORMAT_JPEG(17, "format:jpeg", 0.300),
-    FORMAT_PNG(18, "format:png", 0.315),
-    FORMAT_TIF(19, "format:tif", 0.345),
-    FORMAT_TIFF(20, "format:tiff", 0.345),
-    FORMAT_ICO(21, "format:ico", 0.360),
-    FORMAT_WEBP(22, "format:webp", 0.375),
-    FORMAT_GIF(23, "format:gif", 0.405),
-    
+
+    // 📐 Geometría
+    FLIP(1, "flip", 0.15),
+    CROP(2, "crop", 0.20),
+    ROTATE(3, "rotate", 0.30),
+    RESIZE(4, "resize", 0.60),
+
+    // 🎨 Filtros básicos
+    GRAYSCALE(5, "grayscale", 0.25),
+    SEPIA(6, "sepia", 0.35),
+    COLOR_TINT(7, "color_tint", 0.40),
+    POSTERIZE(8, "posterize", 0.45),
+    PIXELATE(9, "pixelate", 0.50),
+
+    // ✨ Ajustes
+    BRIGHTNESS(10, "brightness", 0.30),
+    CONTRAST(11, "contrast", 0.30),
+    BRIGHTNESS_CONTRAST(12, "brightness_contrast", 0.45),
+    BLUR(13, "blur", 0.55),
+    SHARPEN(14, "sharpen", 0.65),
+
+    // 🏷️ Anotación
+    WATERMARK_TEXT(15, "watermark_text", 0.80),
+
+    // 🧠 Inteligencia
+    OCR(16, "ocr", 3.00),
+    INFERENCE(17, "inference", 4.00),
+
+    // 📦 Conversión de formato (I/O + compresión)
+    FORMAT_BMP(18, "format:bmp", 0.20),
+    FORMAT_JPG(19, "format:jpg", 0.30),
+    FORMAT_JPEG(20, "format:jpeg", 0.30),
+    FORMAT_PNG(21, "format:png", 0.35),
+    FORMAT_TIF(22, "format:tif", 0.40),
+    FORMAT_TIFF(23, "format:tiff", 0.40),
+    FORMAT_ICO(24, "format:ico", 0.45),
+    FORMAT_WEBP(25, "format:webp", 0.50),
+    FORMAT_GIF(26, "format:gif", 0.55),
+
     UNKNOWN(99, "unknown", 1.0);
 
     private final int id;
@@ -43,9 +56,6 @@ public enum TransformationType {
     public String getName() { return name; }
     public double getCostWeight() { return costWeight; }
 
-    /**
-     * Busca la constante según su TypeId almacenado en Base de Datos.
-     */
     public static double getWeightById(int typeId) {
         for (TransformationType t : TransformationType.values()) {
             if (t.getId() == typeId) {
@@ -55,10 +65,6 @@ public enum TransformationType {
         return UNKNOWN.getCostWeight();
     }
 
-    /**
-     * Busca la constante según el nombre textual (ej: "blur", "format:png").
-     * Ignora mayúsculas/minúsculas.
-     */
     public static double getWeightByName(String name) {
         if (name == null || name.isEmpty()) return UNKNOWN.getCostWeight();
         for (TransformationType t : TransformationType.values()) {

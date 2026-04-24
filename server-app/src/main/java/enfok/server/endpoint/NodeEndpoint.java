@@ -12,6 +12,8 @@ import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
 import enfok.server.model.entity.bd.Batches;
+import enfok.server.model.entity.bd.LogRecord;
+import enfok.server.model.entity.bd.NodeMetricsBd;
 import enfok.server.model.entity.dto.node.UploadBatchRequest;
 import enfok.server.model.entity.dto.node.UploadBatchResult;
 import enfok.server.model.entity.dto.node.BatchStatusResult;
@@ -24,7 +26,6 @@ import enfok.server.utility.TokenMapper;
 
 /**
  * Endpoint de Procesamiento de Nodos (SOAP Service).
- * Implementa el contrato definido en apiSoapNode con el namespace http://node.soap.model.server.enfok/
  */
 @WebService(endpointInterface = "enfok.server.model.soap.node.apiSoapNode", serviceName = "NodeService")
 public class NodeEndpoint implements apiSoapNode {
@@ -156,6 +157,24 @@ public class NodeEndpoint implements apiSoapNode {
             return nodeOrchestrator.downloadBatchResult(tokenMapper.extractToken(context), jobId);
         } catch (InfrastructureOfflineException e) {
             throw new RuntimeException("El servidor de nodos está fuera de línea.", e);
+        }
+    }
+
+    @Override
+    public List<LogRecord> getLogsByImage(String imageUuid) throws NotFoundException {
+        try {
+            return nodeOrchestrator.getLogsByImage(tokenMapper.extractToken(context), imageUuid);
+        } catch (InfrastructureOfflineException e) {
+            throw new RuntimeException("El servidor está fuera de línea.", e);
+        }
+    }
+
+    @Override
+    public List<NodeMetricsBd> getMetricsByNode(String nodeId) throws NotFoundException {
+        try {
+            return nodeOrchestrator.getMetricsByNode(tokenMapper.extractToken(context), nodeId);
+        } catch (InfrastructureOfflineException e) {
+            throw new RuntimeException("El servidor está fuera de línea.", e);
         }
     }
 }

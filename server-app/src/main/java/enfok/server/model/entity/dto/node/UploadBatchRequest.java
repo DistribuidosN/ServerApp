@@ -7,17 +7,18 @@ import java.util.List;
  */
 public class UploadBatchRequest {
     private String id;
-    private List<String> filters;
+    private List<TransformationItem> filters;
     private List<ImageItemBatch> images;
 
     public UploadBatchRequest() {
     }
 
-    public UploadBatchRequest(String id, List<String> filters, List<ImageItemBatch> images) {
+    public UploadBatchRequest(String id, List<TransformationItem> filters, List<ImageItemBatch> images) {
         this.id = id;
         this.filters = filters;
         this.images = images;
     }
+
 
     public String getId() {
         return id;
@@ -27,13 +28,14 @@ public class UploadBatchRequest {
         this.id = id;
     }
 
-    public List<String> getFilters() {
+    public List<TransformationItem> getFilters() {
         return filters;
     }
 
-    public void setFilters(List<String> filters) {
+    public void setFilters(List<TransformationItem> filters) {
         this.filters = filters;
     }
+
 
     public List<ImageItemBatch> getImages() {
         return images;

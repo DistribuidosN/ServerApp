@@ -9,9 +9,6 @@ public class Config {
     @ConfigProperty(name = "MOCK_SERVICES", defaultValue = "true")
     private boolean mockServices;
 
-    @ConfigProperty(name = "NODE", defaultValue = "")
-    private String node;
-
     @ConfigProperty(name = "BD_AUTH", defaultValue = "")
     private String authBd;
 
@@ -21,13 +18,11 @@ public class Config {
     public boolean isMockServices() {
         return mockServices;
     }
-    public String getNode() {
-        return node;
-    }
     public String getAuthBd() {
         return authBd;
     }
     public String getBdSystem() {
         return bdSystem;
     }
+
 }

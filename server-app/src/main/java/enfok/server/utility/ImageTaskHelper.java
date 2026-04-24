@@ -2,6 +2,7 @@ package enfok.server.utility;
 
 import enfok.server.model.entity.bd.Transformation;
 import enfok.server.model.entity.bd.TransformationType;
+import enfok.server.model.entity.dto.node.TransformationItem;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import javax.imageio.ImageIO;
@@ -12,29 +13,30 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Helper class to process image-related tasks and extract metadata.
- * Extracted from NodeRepository to keep the repository logic clean.
+ * Clase de utilidad para procesar tareas de imágenes, extraer metadatos y analizar el peso
+ * computacional de las transformaciones solicitadas.
  */
 @ApplicationScoped
 public class ImageTaskHelper {
 
     /**
-     * Record to hold image metadata.
+     * Record para encapsular metadatos de dimensiones y formato.
      */
     public record ImageMetadata(int width, int height, String format) {}
 
     /**
-     * Record to hold the result of transformation analysis.
+     * Resultado del análisis de un pipeline de transformaciones.
      */
-    public record TransformationAnalysis(List<String> filterNames, double totalWeight) {}
+    public record TransformationAnalysis(List<TransformationItem> filters, double totalWeight) {}
 
     /**
-     * Extracts format, width, and height from image bytes without fully decoding the pixel data.
+     * Extrae el formato, ancho y alto de una imagen a partir de sus bytes sin decodificarla por completo.
      * 
-     * @param imageData The raw image bytes.
-     * @return An ImageMetadata object with dimensions and format.
+     * @param imageData Los bytes crudos de la imagen.
+     * @return Objeto ImageMetadata con dimensiones y formato detectado.
      */
     public ImageMetadata extractMetadata(byte[] imageData) {
         int width = 1024;
@@ -55,32 +57,50 @@ public class ImageTaskHelper {
                     reader.dispose();
                 }
             } catch (IOException ignored) {
-                // In case of error, we return the default values
             }
         }
         return new ImageMetadata(width, height, format);
     }
 
     /**
-     * Extracts filter names and calculates the total cost weight of a list of transformations.
+     * Convierte una lista de transformaciones SOAP legacy a objetos dinámicos TransformationItem
+     * y calcula su peso computacional total.
      * 
-     * @param transformations The list of transformations to analyze.
-     * @return A TransformationAnalysis object with filter names and total weight.
+     * @param transformations Lista de transformaciones recibidas por SOAP.
+     * @return TransformationAnalysis con el pipeline mapeado y su peso.
      */
     public TransformationAnalysis analyzeTransformations(List<Transformation> transformations) {
         double totalWeight = 0.0;
-        List<String> filterNames = new ArrayList<>();
+        List<TransformationItem> items = new ArrayList<>();
 
         if (transformations != null && !transformations.isEmpty()) {
             for (Transformation trans : transformations) {
-                String filterName = trans.getName();
-                filterNames.add(filterName);
-                totalWeight += TransformationType.getWeightByName(filterName);
+                // Mapeamos al nuevo modelo dinámico preservando los parámetros JSON
+                TransformationItem item = new TransformationItem(trans.getName(), trans.getParams());
+                items.add(item);
+                totalWeight += TransformationType.getWeightByName(trans.getName());
             }
         } else {
-            totalWeight = 1.0; // Default minimum weight if no transformations are provided
+            totalWeight = 1.0; 
         }
 
-        return new TransformationAnalysis(filterNames, totalWeight);
+        return new TransformationAnalysis(items, totalWeight);
+    }
+
+    /**
+     * Calcula los pesos para el DTO TransformationItem (usado en REST y por el Orquestador).
+     */
+    public TransformationAnalysis analyzeTransformationItems(List<TransformationItem> transformations) {
+        double totalWeight = 0.0;
+
+        if (transformations != null && !transformations.isEmpty()) {
+            for (TransformationItem item : transformations) {
+                totalWeight += TransformationType.getWeightByName(item.getName());
+            }
+        } else {
+            totalWeight = 1.0;
+        }
+
+        return new TransformationAnalysis(transformations, totalWeight);
     }
 }

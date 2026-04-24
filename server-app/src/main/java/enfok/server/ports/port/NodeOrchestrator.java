@@ -7,6 +7,8 @@ import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
 import enfok.server.model.entity.bd.Batches;
+import enfok.server.model.entity.bd.LogRecord;
+import enfok.server.model.entity.bd.NodeMetricsBd;
 import enfok.server.model.entity.dto.node.UploadBatchRequest;
 import enfok.server.model.entity.dto.node.UploadBatchResult;
 import enfok.server.model.entity.dto.node.BatchStatusResult;
@@ -36,4 +38,7 @@ public interface NodeOrchestrator {
     public UploadBatchResult uploadBatch(String token, UploadBatchRequest request) throws NotFoundException, InfrastructureOfflineException;
     public BatchStatusResult getBatchStatusV2(String token, String jobId) throws NotFoundException, InfrastructureOfflineException;
     public BatchProcessedResult getBatchResults(String token, String jobId) throws NotFoundException, InfrastructureOfflineException;
+
+    public List<LogRecord> getLogsByImage(String token, String imageUuid) throws NotFoundException, InfrastructureOfflineException;
+    public List<NodeMetricsBd> getMetricsByNode(String token, String nodeId) throws NotFoundException, InfrastructureOfflineException;
 }

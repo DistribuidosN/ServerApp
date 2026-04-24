@@ -8,12 +8,13 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.UUID;
 import java.util.Base64;
 
 import enfok.server.utility.NetworkValidator;
 import enfok.server.config.Config;
 import enfok.server.ports.adapter.NodeRepositoryInterface;
-import enfok.server.ports.adapter.MessageQueueProducer;
+import enfok.server.ports.adapter.BdRepositoryInterface;
 import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
@@ -31,6 +32,7 @@ import jakarta.inject.Inject;
 
 import enfok.server.utility.TaskQueue;
 import enfok.server.utility.ImageTaskHelper;
+import enfok.server.model.entity.dto.node.TransformationItem;
 
 @ApplicationScoped
 public class NodeRepository implements NodeRepositoryInterface {
@@ -42,26 +44,17 @@ public class NodeRepository implements NodeRepositoryInterface {
     TaskQueue taskQueue;
 
     @Inject
-    NetworkValidator networkValidator;
-
-    @Inject
     ImageTaskHelper imageHelper;
+    @Inject
+    BdRepositoryInterface bdRepository;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
-    private String getBaseUrl() {
-        String url = config.getNode();
-        if (url != null && url.endsWith("/")) {
-            return url.substring(0, url.length() - 1);
-        }
-        return url;
-    }
-
     @Override
     public boolean validateServer() throws InfrastructureOfflineException {
-        return networkValidator.validate(getBaseUrl());
+        return true;
     }
 
     @Override
@@ -82,6 +75,7 @@ public class NodeRepository implements NodeRepositoryInterface {
         return true;
     }
 
+
     @Override
     public Node getNode(String token, String nodeId) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
@@ -95,29 +89,28 @@ public class NodeRepository implements NodeRepositoryInterface {
     }
 
     @Override
-    public UploadBatchResult uploadBatch(String token, UploadBatchRequest request) throws NotFoundException, InfrastructureOfflineException {
-        validateServer();
+    public UploadBatchResult uploadBatch(String userUuid, UploadBatchRequest request) throws NotFoundException, InfrastructureOfflineException {
+
 
         // 1. TODO: Insertar registro del Batch en la BD (PENDING)
-        // String batchUuid = request.getId();
+        String batchUuid = request.getId();
 
-        // 2. Procesar cada imagen del lote con la misma lógica de uploadImages
+        // 1. Registro del Batch (Write-Through)
+        bdRepository.uploadBatch(userUuid, batchUuid);
+        
+        // 2. Registro MASIVO del pipeline de transformaciones (con parámetros)
+        bdRepository.insertBatchTransformations(batchUuid, request.getFilters());
+
+        // --- Analizar Peso de Transformaciones para Planificación ---
+        ImageTaskHelper.TransformationAnalysis analysis = imageHelper.analyzeTransformationItems(request.getFilters());
+        double taskWeight = analysis.totalWeight();
+
+        // 3. Procesar y encolar cada imagen
         for (ImageItemBatch imageItem : request.getImages()) {
-            
-            // Decodificar Base64 a bytes
             byte[] imageData = Base64.getDecoder().decode(imageItem.getBase64());
-
-            // --- A. Calcular Peso de Transformaciones (Filtros) ---
-            double taskWeight = 0;
-            for (String filterName : request.getFilters()) {
-                taskWeight += TransformationType.getWeightByName(filterName);
-            }
-            if (taskWeight <= 0) taskWeight = 1.0;
-
-            // --- B. Extraer Metadatos de la Imagen ---
             ImageTaskHelper.ImageMetadata metadata = imageHelper.extractMetadata(imageData);
 
-            // --- C. Encolar en la TaskQueue principal (Lógica de uploadImages) ---
+            // --- Encolar en memoria con parámetros ---
             taskQueue.addNewImageTask(
                     imageItem.getId(),
                     metadata.width(),
@@ -128,13 +121,14 @@ public class NodeRepository implements NodeRepositoryInterface {
                     request.getFilters(),
                     imageItem.getName()
             );
-
-            // --- D. TODO: Insertar registro de la imagen asociada al Batch en BD ---
-            // db.insertBatchImage(request.getId(), imageItem.getId(), ...);
+            
+            // --- Registrar imagen individual ---
+            bdRepository.uploadImage(userUuid, batchUuid, imageItem.getId(), imageItem.getName());
         }
 
-        return new UploadBatchResult(request.getId(), "ACCEPTED", "El lote ha sido recibido y sus imágenes han sido encoladas para procesamiento.");
+        return new UploadBatchResult(batchUuid, "ACCEPTED", "Lote recibido y pipeline de filtros registrado correctamente.");
     }
+
 
     @Override
     public BatchStatusResult getBatchStatusV2(String jobId) throws NotFoundException {
@@ -175,16 +169,14 @@ public class NodeRepository implements NodeRepositoryInterface {
             throws NotFoundException, InfrastructureOfflineException {
         validateServer();
         Batches batch = new Batches();
-        Random rand = new Random();
-
-        // TODO: Lógica real de HTTP POST hacia la DB o Backend real
-        batch.setId(rand.nextInt(1000000)); // De 0 a 999,999
-        batch.setStatusId(1);
+        // Generamos un identificador único para el lote
+        batch.setBatchUuid(UUID.randomUUID().toString());
+        batch.setStatus("PENDING");
 
         // --- 1. Analizar Transformaciones y Calcular Peso ---
         ImageTaskHelper.TransformationAnalysis analysis = imageHelper.analyzeTransformations(transformations);
         double taskWeight = analysis.totalWeight();
-        List<String> filterNames = analysis.filterNames();
+        List<TransformationItem> filters = analysis.filters();
 
         // --- 2. Extraer Metadatos de la Imagen ---
         ImageTaskHelper.ImageMetadata metadata = imageHelper.extractMetadata(imageData);
@@ -196,22 +188,23 @@ public class NodeRepository implements NodeRepositoryInterface {
 
         // --- 3. ¡Nuevo Encolamiento con todos los datos! ---
         taskQueue.addNewImageTask(
-                String.valueOf(batch.getId()),
+                batch.getBatchUuid(),
                 realWidth,
                 realHeight,
                 imageFormat,
                 taskWeight,
                 imageData,
-                filterNames,
+                filters,
                 fileName
         );
 
+
         // --- 4. Logs ---
         System.out.println("====== TAREA ENCOLADA ======");
-        System.out.println("BATCH ID     : " + batch.getId());
+        System.out.println("BATCH ID     : " + batch.getBatchUuid());
         System.out.println("DIMENSIONES  : " + realWidth + "x" + realHeight + "px");
         System.out.println("PESO TOTAL   : " + taskWeight);
-        System.out.println("FILTROS      : " + filterNames);
+        System.out.println("FILTROS      : " + filters);
         System.out.println("TAMAÑO BYTES : " + (imageData != null ? imageData.length : 0) + " bytes");
         System.out.println("ARCHIVO      : " + fileName);
         System.out.println("============================");

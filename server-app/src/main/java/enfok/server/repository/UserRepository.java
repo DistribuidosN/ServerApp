@@ -14,6 +14,9 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import java.sql.Timestamp;
+import enfok.server.ports.adapter.BdRepositoryInterface;
+import enfok.server.model.entity.bd.UserActivity;
+import enfok.server.model.entity.bd.UserStatistics;
 
 @ApplicationScoped
 public class UserRepository implements UserRepositoryInterface {
@@ -27,6 +30,9 @@ public class UserRepository implements UserRepositoryInterface {
     @Inject
     @RestClient
     UserServiceClient userClient;
+
+    @Inject
+    BdRepositoryInterface bdRepository;
 
     @Override
     public boolean validateServer() throws InfrastructureOfflineException {
@@ -71,17 +77,37 @@ public class UserRepository implements UserRepositoryInterface {
     @Override
     public Activity getUserActivity(String token) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
-        // Pendiente endpoint real si existe
+        User u = profile(token);
+        if (u == null || u.getUserUuid() == null) return new Activity();
+
+        java.util.List<UserActivity> logs = bdRepository.getUserActivity(u.getUserUuid());
+        UserStatistics stats = bdRepository.getUserStatistics(u.getUserUuid());
+
         Activity ac = new Activity();
-        ac.setTotalBatches(0);
+        ac.setTotalBatches(stats != null ? stats.getTotalBatches() : 0);
+        ac.setTotalImagesProcessed(stats != null ? stats.getImagesSuccess() : 0);
+        
+        if (logs != null && !logs.isEmpty()) {
+            UserActivity last = logs.get(0);
+            ac.setLastActivity(last.getEventType() + " en " + last.getRefUuid());
+        } else {
+            ac.setLastActivity("Sin actividad reciente");
+        }
+        
         return ac;
     }
 
     @Override
     public String getUserStatistics(String token) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
-        // Pendiente endpoint real si existe
-        return "Estadísticas no disponibles en modo real";
+        User u = profile(token);
+        if (u == null || u.getUserUuid() == null) return "Usuario no encontrado";
+
+        UserStatistics stats = bdRepository.getUserStatistics(u.getUserUuid());
+        if (stats == null) return "Estadísticas no encontradas";
+
+        return String.format("Lotes: %d | Total Imágenes: %d | Éxito: %d | Fallo: %d",
+                stats.getTotalBatches(), stats.getTotalImages(), stats.getImagesSuccess(), stats.getImagesFailed());
     }
 
     @Override

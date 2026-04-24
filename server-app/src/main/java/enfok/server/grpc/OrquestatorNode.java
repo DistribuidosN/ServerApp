@@ -20,6 +20,15 @@ import enfok.worker.proto.TaskProgress;
 import enfok.worker.proto.TaskResult;
 import enfok.worker.proto.HeartbeatRequest;
 import enfok.worker.proto.Ack;
+import enfok.worker.proto.RegisterNodeRequest;
+import enfok.worker.proto.RegisterNodeResponse;
+import enfok.worker.proto.LogRequest;
+import enfok.worker.proto.LogResponse;
+import enfok.server.utility.NodeMemoryRegistry;
+import enfok.server.model.entity.bd.LogRecord;
+import enfok.server.model.entity.bd.NodeMetricsBd;
+import enfok.server.ports.adapter.BdRepositoryInterface;
+import enfok.server.model.entity.bd.Node;
 
 import enfok.server.model.grpc.ImageQueue;
 import enfok.server.utility.TaskQueue;
@@ -37,15 +46,16 @@ import java.util.Map;
  * [ADAPTER - IN / gRPC SERVER]: Servicio {@code Orchestrator} expuesto en el
  * puerto 9000.
  *
- * Implementa los 7 RPCs que los nodos Python llaman:
+ * Implementa los 8 RPCs que los nodos llaman:
  *
- * 1. PullTasks — A2WS PULL: el worker pide slots_free tareas
- * 2. SubmitResult — el worker entrega el resultado procesado
- * 3. StealTasks — árbitro de work-stealing entre nodos
- * 4. UpdateTaskProgress — progreso en tiempo real (0–100 %)
- * 5. SendHeartbeat — ping periódico "sigo vivo"
- * 6. GetQueueStatus — snapshot de la cola central y todos los nodos
- * 7. WatchQueue — stream reactivo del estado (cada 2 s)
+ * 1. PullTasks         — A2WS PULL: el worker pide slots_free tareas
+ * 2. SubmitResult      — el worker entrega el resultado procesado
+ * 3. StealTasks        — árbitro de work-stealing entre nodos
+ * 4. UpdateTaskProgress— progreso en tiempo real (0–100 %)
+ * 5. RegisterNode      — registro inicial idempotente (REGISTERED | UPDATED)
+ * 6. SendHeartbeat     — ping periódico "sigo vivo"
+ * 7. GetQueueStatus    — snapshot de la cola central y todos los nodos
+ * 8. WatchQueue        — stream reactivo del estado (cada 2 s)
  */
 @GrpcService
 public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase {
@@ -61,7 +71,14 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
     @Inject
     TaskQueue taskQueue;
 
+    @Inject
+    NodeMemoryRegistry nodeMemoryRegistry;
+
+    @Inject
+    BdRepositoryInterface bdRepository;
+
     // =========================================================================
+
     // 1. PULL TASKS → El worker Python llama esto para pedir trabajo
     // Es el método más importante del sistema A2WS.
     // El nodo dice "tengo N slots libres" → le devolvemos hasta N tareas.
@@ -83,27 +100,30 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
             if (item == null)
                 break; // cola vacía → dejamos de sacar
 
-            // 1. Unimos todos los filtros separados por comas (ej: "blur,ocr,grayscale")
-            String filtrosAplicar = (item.transformations != null && !item.transformations.isEmpty())
-                    ? String.join(",", item.transformations)
-                    : "thumbnail"; // default de seguridad
-
-            // 2. Extraemos los bytes a una variable nueva de tipo ByteString de gRPC
-            com.google.protobuf.ByteString grpcImageData = com.google.protobuf.ByteString.copyFrom(item.imageBytes);
-
-            // 3. Empaquetamos la tarea para enviarla por gRPC
-            dispatched.add(
-                    ImageTask.newBuilder()
-                            .setTaskId(item.id)
-                            .setFilename(item.filename)
-                            .setFilterType(filtrosAplicar) // Asignamos el filtro real
-                            .setImageData(grpcImageData) // <-- ¡Inyectamos la nueva variable limpia!
-                            .setTargetWidth(item.width)
-                            .setTargetHeight(item.height)
-                            .setEnqueueTs(System.currentTimeMillis())
-                            .setPriority(0)
+            // 1. Construir el Pipeline dinámico (Nuevo Contrato)
+            enfok.worker.proto.TransformationPipeline.Builder pipelineBuilder = enfok.worker.proto.TransformationPipeline.newBuilder();
+            if (item.transformations != null) {
+                for (enfok.server.model.entity.dto.node.TransformationItem trans : item.transformations) {
+                    pipelineBuilder.addItems(enfok.worker.proto.TransformationItem.newBuilder()
+                            .setType(trans.getName())
+                            .setParamsJson(trans.getParams())
                             .build());
+                }
+            }
+
+            // 2. Construir mensaje gRPC
+            dispatched.add(ImageTask.newBuilder()
+                    .setTaskId(item.id)
+                    .setImageData(com.google.protobuf.ByteString.copyFrom(item.imageBytes))
+                    .setFilename(item.filename)
+                    .setTransformationPipeline(pipelineBuilder.build())
+                    .setEnqueueTs(System.currentTimeMillis())
+                    .setTargetWidth(item.width)
+                    .setTargetHeight(item.height)
+                    .setImageFormat(item.imageFormat)
+                    .build());
         }
+
 
         boolean queueDry = taskQueue.isEmpty();
 
@@ -142,38 +162,37 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
             log.info(String.format("[SUBMIT] ✔ task=%s  nodo=%s  tiempo=%dms  bytes=%d",
                     taskId, nodeId, ms, imageBytes.length));
 
-            // 2. Lógica para guardar la imagen en disco
+            // 2. Persistencia síncrona en BD
             try {
-                // 1. Obtenemos la ruta absoluta de la raíz del proyecto
-                String projectRoot = System.getProperty("user.dir");
-
-                // 2. Anclamos la carpeta "imagenes" a esa raíz
-                Path dirPath = Paths.get(projectRoot, "imagenes");
-
-                // 3. Creamos la carpeta si no existe
-                if (!Files.exists(dirPath)) {
-                    Files.createDirectories(dirPath);
+                // [SENIOR FIX]: Enviamos los bytes puros y el nodeId. 
+                // Go se encargará de subir a MinIO y guardar el path + trazabilidad.
+                bdRepository.updateImageResult(taskId, imageBytes, nodeId);
+                
+                // Registramos las métricas de rendimiento recibidas del nodo
+                if (result.hasMetrics()) {
+                    log.info("[METRICS] Vinculando métricas de rendimiento a la imagen: " + taskId);
+                    bdRepository.createMetrics(mapMetrics(nodeId, taskId, result.getMetrics()));
                 }
 
-                // 4. Resolvemos el nombre del archivo final
-                Path filePath = dirPath.resolve(taskId + "_procesada.png");
-
-                // 5. Guardamos
-                Files.write(filePath, imageBytes);
-
-                log.info("[SUBMIT] Imagen guardada en: " + filePath.toAbsolutePath());
-                log.info("[SUBMIT] Metadatos recibidos: " + metadata);
-
+                log.info("[SUBMIT] Resultados y métricas persistidos con éxito.");
             } catch (Exception e) {
-                log.severe("[SUBMIT] ¡Error crítico al guardar la imagen en disco!: " + e.getMessage());
+                log.severe("[SUBMIT] Error persistiendo resultados en BD: " + e.getMessage());
             }
+
 
         } else {
             taskQueue.setStatus(taskId, "FAILED");
             log.warning(String.format("[SUBMIT] ✘ task=%s  nodo=%s  error=%s",
                     taskId, nodeId, result.getErrorMsg()));
-            // (Futuro) re-encolar si attempt < maxRetries
+            
+            // Persistencia en BD
+            try {
+                bdRepository.updateImageStatus(taskId, "FAILED");
+            } catch (Exception e) {
+                log.warning("[SUBMIT] Error al actualizar status FAILED en BD para task " + taskId);
+            }
         }
+
 
         return Uni.createFrom().item(Ack.newBuilder().setOk(true).setMsg("Resultado guardado").build());
     }
@@ -231,9 +250,63 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
     }
 
     // =========================================================================
-    // 5. SEND HEARTBEAT → Ping periódico del nodo Python
-    // Si no llega en 30 s → nodo DOWN → re-encolar sus tareas (futuro)
+    // 5. REGISTER NODE → Registro inicial idempotente del nodo Go
+    // El cliente llama esto al arrancar Y periódicamente como heartbeat de
+    // registro. El servidor responde REGISTERED (primera vez) o UPDATED
+    // (ya existía) para que el nodo sepa si fue reconocido como nuevo.
     // =========================================================================
+
+    @Override
+    public Uni<RegisterNodeResponse> registerNode(RegisterNodeRequest request) {
+        String nodeId = request.getNodeId();
+        String ip = request.getIpAddress();
+        int port = request.getPort();
+        NodeMetrics m = request.getMetrics();
+
+        // 1. Memoria (Orquestador Central)
+        String regStatus = nodeMemoryRegistry.registerOrUpdate(nodeId, ip, port);
+        boolean isNew = "REGISTERED".equals(regStatus);
+
+        // 2. Memoria (TaskQueue - Planificación)
+        boolean hasCapacity = m.getQueueSize() < m.getQueueCapacity();
+        taskQueue.registerNode(nodeId, ip, port, hasCapacity);
+
+        // 3. Persistencia SÍNCRONA (Consistencia Garantizada)
+        try {
+            Node nodeBd = new Node();
+            nodeBd.setNodeId(nodeId);
+            nodeBd.setHost(ip);
+            nodeBd.setPort(port);
+            nodeBd.setStatusId(isNew ? 1 : 2); // 1: ACTIVO
+            
+            bdRepository.registerNode(nodeBd);
+            bdRepository.createMetrics(mapMetrics(nodeId, null, m));
+            
+            log.fine("Persistencia de registro exitosa para " + nodeId);
+        } catch (Exception e) {
+            log.severe("Fallo crítico persistiendo nodo " + nodeId + ": " + e.getMessage());
+            return Uni.createFrom().item(RegisterNodeResponse.newBuilder()
+                    .setOk(false)
+                    .setStatus("ERROR")
+                    .setMsg("Error de persistencia: " + e.getMessage())
+                    .build());
+        }
+
+
+        if (isNew) {
+            log.info(String.format("[REG] ✚ NUEVO NODO: %s en %s:%d", nodeId, ip, port));
+        } else {
+            log.fine(String.format("[REG] ↺ ACTUALIZADO: %s en %s:%d", nodeId, ip, port));
+        }
+
+        return Uni.createFrom().item(
+                RegisterNodeResponse.newBuilder()
+                        .setOk(true)
+                        .setStatus(regStatus)
+                        .setMsg(isNew ? "Nodo registrado correctamente en el sistema A2WS" : "Configuración de red actualizada")
+                        .build());
+    }
+
 
     @Override
     public Uni<Ack> sendHeartbeat(HeartbeatRequest request) {
@@ -241,18 +314,39 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
         String ip = request.getIpAddress();
         NodeMetrics m = request.getMetrics();
 
-        // Registramos el nodo como vivo y si tiene espacio en su cola local
+        // 1. Memoria (Rápido para Work Stealing & Watchdog)
         boolean nodeHasCapacity = m.getQueueSize() < m.getQueueCapacity();
         taskQueue.heartbeat(nodeId, ip, nodeHasCapacity);
+        nodeMemoryRegistry.updateHeartbeat(nodeId);
 
-        log.fine(String.format("[HB] ♥ nodo=%-10s  ip=%-15s  CPU=%.1f%%  cola=%d/%d  %s",
-                nodeId, ip,
-                m.getCpuPercent(),
-                m.getQueueSize(), m.getQueueCapacity(),
-                m.getStatus()));
+
+
+        log.fine(String.format("[HB] ♥ nodo=%-10s  ip=%-15s  CPU=%.1f%%  cola=%d/%d",
+                nodeId, ip, m.getCpuPercent(), m.getQueueSize(), m.getQueueCapacity()));
 
         return Uni.createFrom().item(ok("OK"));
     }
+
+
+    private NodeMetricsBd mapMetrics(String nodeId, String imageUuid, NodeMetrics m) {
+        NodeMetricsBd bd = new NodeMetricsBd();
+        bd.setNodeId(nodeId);
+        bd.setImageUuid(imageUuid);
+        
+        bd.setCpuPercent(m.getCpuPercent());
+        bd.setRamUsedMb((double) m.getRamUsedMb());
+        bd.setRamTotalMb((double) m.getRamTotalMb());
+        bd.setWorkersBusy(m.getWorkersBusy());
+        bd.setWorkersTotal(m.getWorkersTotal());
+        bd.setQueueSize(m.getQueueSize());
+        bd.setQueueCapacity(m.getQueueCapacity());
+        bd.setTasksDone(m.getTasksDone());
+        bd.setUptimeSeconds(m.getUptimeSeconds());
+        bd.setStatus(m.getStatus());
+        bd.setReportedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+        return bd;
+    }
+
 
     // =========================================================================
     // 6. GET QUEUE STATUS → Snapshot completo para dashboard / A2WS
@@ -303,8 +397,59 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
         return snap.build();
     }
 
+    // 7. LOG EVENT → Centralización de logs de los nodos trabajadores
+    // =========================================================================
+    @Override
+    public Uni<LogResponse> logEvent(LogRequest request) {
+        String level = request.getLevel().toUpperCase();
+        String message = request.getMessage();
+        String nodeId = request.getNodeId();
+
+        // 1. Filtrado: Solo almacenar logs importantes (Regla 4: NO DEBUG)
+        if ("DEBUG".equals(level) || level.isEmpty()) {
+            return Uni.createFrom().item(LogResponse.newBuilder().setOk(true).build());
+        }
+
+        // 2. Mapeo de Nivel a ID (Regla 3)
+        int levelId = mapLogLevel(level);
+
+        // 3. Persistencia Asíncrona (Regla 2 & 5)
+        enfok.server.utility.Infrastructure.getDefaultWorkerPool().execute(() -> {
+            try {
+                // Validación básica de nodo
+                if (nodeMemoryRegistry.getActiveNodes().containsKey(nodeId)) {
+                    LogRecord logRecord = new LogRecord();
+                    logRecord.setNodeId(nodeId);
+                    logRecord.setImageUuid(request.getImageUuid());
+                    logRecord.setLevelId(levelId);
+                    logRecord.setLevelName(level);
+                    logRecord.setMessage(message);
+                    logRecord.setTransformationId(request.getTransformationId());
+                    
+                    bdRepository.createLog(logRecord);
+                }
+            } catch (Exception e) {
+                // Regla 5: Loggear error en servidor sin afectar al nodo
+                log.severe("[LOG-COLLECTOR] Error persistiendo log de " + nodeId + ": " + e.getMessage());
+            }
+        });
+
+        return Uni.createFrom().item(LogResponse.newBuilder().setOk(true).build());
+    }
+
+    private int mapLogLevel(String level) {
+        switch (level) {
+            case "INFO": return 1;
+            case "WARNING": return 2;
+            case "ERROR": return 3;
+            case "CRITICAL": return 4;
+            default: return 1; // Fallback a INFO
+        }
+    }
+
     /** Ack genérico positivo. */
     private Ack ok(String msg) {
         return Ack.newBuilder().setOk(true).setMsg(msg).build();
     }
 }
+

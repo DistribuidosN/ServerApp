@@ -11,6 +11,8 @@ import enfok.server.model.entity.bd.Node;
 import enfok.server.model.entity.bd.Batches;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.Transformation;
+import enfok.server.model.entity.bd.LogRecord;
+import enfok.server.model.entity.bd.NodeMetricsBd;
 import enfok.server.model.entity.dto.node.UploadBatchRequest;
 import enfok.server.model.entity.dto.node.UploadBatchResult;
 import enfok.server.model.entity.dto.node.BatchStatusResult;
@@ -49,21 +51,12 @@ public interface apiSoapNode {
                                    @WebParam(name = "transformations") ArrayList<Transformation> transformations, 
                                    @WebParam(name = "parameters") ArrayList<Transformation> parameters) throws NotFoundException;
 
-    /**
-     * Recibe un lote de imágenes para procesamiento asíncrono.
-     */
     @WebMethod
     public UploadBatchResult uploadBatch(@WebParam(name = "request") UploadBatchRequest request) throws NotFoundException;
 
-    /**
-     * Consulta el estado y progreso de un lote.
-     */
     @WebMethod
     public BatchStatusResult getBatchStatusV2(@WebParam(name = "jobId") String jobId) throws NotFoundException;
 
-    /**
-     * Obtiene los resultados de un lote finalizado.
-     */
     @WebMethod
     public BatchProcessedResult getBatchResults(@WebParam(name = "jobId") String jobId) throws NotFoundException;
 
@@ -75,4 +68,10 @@ public interface apiSoapNode {
 
     @WebMethod
     public byte[] downloadBatchResult(@WebParam(name = "jobId") String jobId) throws NotFoundException;
+
+    @WebMethod
+    public List<LogRecord> getLogsByImage(@WebParam(name = "imageUuid") String imageUuid) throws NotFoundException;
+
+    @WebMethod
+    public List<NodeMetricsBd> getMetricsByNode(@WebParam(name = "nodeId") String nodeId) throws NotFoundException;
 }
