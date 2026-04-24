@@ -3,9 +3,11 @@ package enfok.server.service;
 import enfok.server.ports.port.UserOrchestrator;
 import enfok.server.ports.adapter.UserRepositoryInterface;
 import enfok.server.model.entity.auth.User;
-import enfok.server.model.entity.auth.Activity;
+import enfok.server.model.entity.dto.user.ActivityEventDTO;
+import enfok.server.model.entity.dto.user.UserStatisticsDTO;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
+import java.util.List;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -56,24 +58,24 @@ public class UserOrchestratorService implements UserOrchestrator {
     }
 
     @Override
-    public Activity getUserActivity(String token) throws NotFoundException, InfrastructureOfflineException {
+    public List<ActivityEventDTO> getUserActivity(String token) throws NotFoundException, InfrastructureOfflineException {
         if (token == null || token.isEmpty()){
             throw new NotFoundException("Token de autorizaci\u00F3n no proporcionado.");
         }
-        Activity result = userRepository.getUserActivity(token);
-        if (result == null){
+        List<ActivityEventDTO> result = userRepository.getUserActivity(token);
+        if (result == null || result.isEmpty()){
             throw new NotFoundException("No se encontraron registros de actividad.");
         }
         return result;
     }
 
     @Override
-    public String getUserStatistics(String token) throws NotFoundException, InfrastructureOfflineException {
+    public UserStatisticsDTO getUserStatistics(String token) throws NotFoundException, InfrastructureOfflineException {
         if (token == null || token.isEmpty()){
             throw new NotFoundException("Token de autorizaci\u00F3n no proporcionado.");
         }
-        String result = userRepository.getUserStatistics(token);
-        if (result == null || result.isEmpty()){
+        UserStatisticsDTO result = userRepository.getUserStatistics(token);
+        if (result == null){
             throw new NotFoundException("No hay estad\u00EDsticas disponibles.");
         }
         return result;

@@ -3,9 +3,11 @@ package enfok.server.endpoint;
 import jakarta.jws.WebService;
 
 import enfok.server.model.entity.auth.User;
-import enfok.server.model.entity.auth.Activity;
+import enfok.server.model.entity.dto.user.ActivityEventDTO;
+import enfok.server.model.entity.dto.user.UserStatisticsDTO;
 import enfok.server.model.soap.user.apiSoapUser;
 import enfok.server.error.NotFoundException;
+import java.util.List;
 
 import enfok.server.error.InfrastructureOfflineException;
 import enfok.server.ports.port.UserOrchestrator;
@@ -73,7 +75,7 @@ public class UserEndpoint implements apiSoapUser {
     }
 
     @Override
-    public Activity getUserActivity() throws NotFoundException {
+    public List<ActivityEventDTO> getUserActivity() throws NotFoundException {
         try {
             return userOrchestrator.getUserActivity(tokenMapper.extractToken(context));
         } catch (InfrastructureOfflineException e) {
@@ -82,7 +84,7 @@ public class UserEndpoint implements apiSoapUser {
     }
 
     @Override
-    public String getUserStatistics() throws NotFoundException {
+    public UserStatisticsDTO getUserStatistics() throws NotFoundException {
         try {
             return userOrchestrator.getUserStatistics(tokenMapper.extractToken(context));
         } catch (InfrastructureOfflineException e) {

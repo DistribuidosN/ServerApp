@@ -3,7 +3,9 @@ package enfok.server.repository;
 import enfok.server.utility.NetworkValidator;
 import enfok.server.config.Config;
 import enfok.server.model.entity.auth.User;
-import enfok.server.model.entity.auth.Activity;
+import enfok.server.model.entity.dto.user.ActivityEventDTO;
+import enfok.server.model.entity.dto.user.UserStatisticsDTO;
+import enfok.server.model.entity.dto.user.TransformationStatDTO;
 import enfok.server.error.NotFoundException;
 import enfok.server.error.InfrastructureOfflineException;
 import enfok.server.ports.adapter.UserRepositoryInterface;
@@ -13,6 +15,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import java.sql.Timestamp;
 import enfok.server.ports.adapter.BdRepositoryInterface;
 import enfok.server.model.entity.bd.UserActivity;
@@ -75,39 +80,47 @@ public class UserRepository implements UserRepositoryInterface {
     }
 
     @Override
-    public Activity getUserActivity(String token) throws NotFoundException, InfrastructureOfflineException {
+    public List<ActivityEventDTO> getUserActivity(String token) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
         User u = profile(token);
-        if (u == null || u.getUserUuid() == null) return new Activity();
+        if (u == null || u.getUserUuid() == null) return new ArrayList<>();
 
         java.util.List<UserActivity> logs = bdRepository.getUserActivity(u.getUserUuid());
-        UserStatistics stats = bdRepository.getUserStatistics(u.getUserUuid());
+        if (logs == null) return new ArrayList<>();
 
-        Activity ac = new Activity();
-        ac.setTotalBatches(stats != null ? stats.getTotalBatches() : 0);
-        ac.setTotalImagesProcessed(stats != null ? stats.getImagesSuccess() : 0);
-        
-        if (logs != null && !logs.isEmpty()) {
-            UserActivity last = logs.get(0);
-            ac.setLastActivity(last.getEventType() + " en " + last.getRefUuid());
-        } else {
-            ac.setLastActivity("Sin actividad reciente");
-        }
-        
-        return ac;
+        return logs.stream().map(log -> {
+            ActivityEventDTO dto = new ActivityEventDTO();
+            dto.setEventType(log.getEventType());
+            dto.setRefUuid(log.getRefUuid());
+            dto.setParentUuid(log.getParentUuid());
+            dto.setDescription(log.getDescription());
+            dto.setOccurredAt(log.getOccurredAt() != null ? log.getOccurredAt().toString() : "");
+            return dto;
+        }).collect(Collectors.toList());
     }
 
     @Override
-    public String getUserStatistics(String token) throws NotFoundException, InfrastructureOfflineException {
+    public UserStatisticsDTO getUserStatistics(String token) throws NotFoundException, InfrastructureOfflineException {
         validateServer();
         User u = profile(token);
-        if (u == null || u.getUserUuid() == null) return "Usuario no encontrado";
+        if (u == null || u.getUserUuid() == null) throw new NotFoundException("Usuario no encontrado");
 
         UserStatistics stats = bdRepository.getUserStatistics(u.getUserUuid());
-        if (stats == null) return "Estadísticas no encontradas";
+        if (stats == null) return null;
 
-        return String.format("Lotes: %d | Total Imágenes: %d | Éxito: %d | Fallo: %d",
-                stats.getTotalBatches(), stats.getTotalImages(), stats.getImagesSuccess(), stats.getImagesFailed());
+        UserStatisticsDTO dto = new UserStatisticsDTO();
+        dto.setTotalBatches(stats.getTotalBatches());
+        dto.setTotalImages(stats.getTotalImages());
+        dto.setImagesSuccess(stats.getImagesSuccess());
+        dto.setImagesFailed(stats.getImagesFailed());
+        
+        if (stats.getTopTransformations() != null) {
+            dto.setTopTransformations(stats.getTopTransformations().stream()
+                .map(t -> new TransformationStatDTO(t.getName(), t.getCount()))
+                .collect(Collectors.toList()));
+        }
+        
+        return dto;
     }
 
     @Override

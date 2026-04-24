@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import enfok.server.model.entity.bd.*;
 import enfok.server.error.InfrastructureOfflineException;
+import enfok.server.model.entity.dto.node.BatchProgressDTO;
+import enfok.server.model.entity.dto.node.NodeMetricsDTO;
 import enfok.server.model.entity.dto.node.TransformationItem;
 
 /**
@@ -34,6 +36,7 @@ public interface BdRepositoryInterface {
     boolean uploadBatch(String userUuid, String batch_uuid) throws InfrastructureOfflineException;
     List<BatchWithCover> listUserBatchesWithCovers(String userUuid) throws InfrastructureOfflineException;
     PaginatedImages getBatchImagesPaginated(String batch_uuid, int page, int limit) throws InfrastructureOfflineException;
+    BatchProgressDTO getBatchProgress(String batch_uuid) throws InfrastructureOfflineException;
 
     // --- Métodos Legacy para Servicio de Orquestación de BD ---
     ArrayList<Image> getUserImages(String token, int limit, int offset) throws InfrastructureOfflineException;
@@ -46,6 +49,7 @@ public interface BdRepositoryInterface {
     // --- Metrics ---
     boolean createMetrics(NodeMetricsBd metrics) throws InfrastructureOfflineException;
     List<NodeMetricsBd> getMetricsByNode(String node_id) throws InfrastructureOfflineException;
+    List<NodeMetricsDTO> getMetricsByImage(String image_uuid) throws InfrastructureOfflineException;
 
     // --- User Statistics & Activity ---
     UserStatistics getUserStatistics(String user_uuid) throws InfrastructureOfflineException;

@@ -9,6 +9,8 @@ import enfok.server.model.entity.bd.Batches;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.BatchWithCover;
 import enfok.server.model.entity.bd.PaginatedImages;
+import enfok.server.model.entity.dto.node.NodeMetricsDTO;
+import enfok.server.model.entity.dto.node.BatchProgressDTO;
 import enfok.server.model.soap.bd.apiSoapBD;
 
 import enfok.server.error.InfrastructureOfflineException;
@@ -61,5 +63,15 @@ public class BdEndpoint implements apiSoapBD {
     @Override
     public PaginatedImages getPaginatedImages(String batchUuid, int page, int limit) throws InfrastructureOfflineException {
         return bdOrchestrator.getPaginatedImages(tokenMapper.extractToken(context), batchUuid, page, limit);
+    }
+
+    @Override
+    public List<NodeMetricsDTO> getImageMetrics(String imageUuid) throws InfrastructureOfflineException {
+        return bdOrchestrator.getImageMetrics(tokenMapper.extractToken(context), imageUuid);
+    }
+
+    @Override
+    public BatchProgressDTO getBatchProgress(String batchUuid) throws InfrastructureOfflineException {
+        return bdOrchestrator.getBatchProgress(tokenMapper.extractToken(context), batchUuid);
     }
 }

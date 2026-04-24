@@ -6,8 +6,7 @@
 ### =============================================================================
 
 @host = localhost:8080
-@authToken = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX3V1aWQiOiI5OWZhYTg5Ny0xNTIyLTRkYmQtYWM2Zi1jOTgzZTU1ZTAyNmMiLCJ1c2VybmFtZSI6Imp1YW5fYWN0dWFsaXphZG8iLCJyb2xlIjoiMSIsImlzcyI6ImF1dGgtc2VydmVyIiwic3ViIjoiOTlmYWE4OTctMTUyMi00ZGJkLWFjNmYtYzk4M2U1NWUwMjZjIiwiZXhwIjoxNzc3MDQ5NDg2LCJpYXQiOjE3NzY5NjMwODZ9.-lC44-IV2TUjbpljiakDLsVxfgi_S8u-Gocu1EpvC0Q
-
+@authToken = Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX3V1aWQiOiI5OWZhYTg5Ny0xNTIyLTRkYmQtYWM2Zi1jOTgzZTU1ZTAyNmMiLCJ1c2VybmFtZSI6Imp1YW5fYWN0dWFsaXphZG8iLCJyb2xlIjoiMSIsImlzcyI6ImF1dGgtc2VydmVyIiwic3ViIjoiOTlmYWE4OTctMTUyMi00ZGJkLWFjNmYtYzk4M2U1NWUwMjZjIiwiZXhwIjoxNzc3MDUwNjU2LCJpYXQiOjE3NzY5NjQyNTZ9.nmq8gG9cHU9o_pJMTZ4wbVoYKZd3l54ntcTJQluNDdo
 # =============================================================================
 # 1. AUTH SERVICE (AuthService)
 # Namespace: http://auth.soap.model.server.enfok/
@@ -137,6 +136,36 @@ Authorization: {{authToken}}
 
 ###
 
+## 3.3 MÉTRICAS POR IMAGEN (TRAZABILIDAD DE RECURSOS)
+POST http://{{host}}/BdService
+Content-Type: text/xml
+Authorization: {{authToken}}
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:bd="http://bd.soap.model.server.enfok/">
+   <soapenv:Body>
+      <bd:getImageMetrics>
+         <imageUuid>3b473306-f91f-4f58-b352-11e0b72de5f2</imageUuid>
+      </bd:getImageMetrics>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+###
+
+## 3.4 PROGRESO DEL LOTE (MONITOREO EN TIEMPO REAL)
+POST http://{{host}}/BdService
+Content-Type: text/xml
+Authorization: {{authToken}}
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:bd="http://bd.soap.model.server.enfok/">
+   <soapenv:Body>
+      <bd:getBatchProgress>
+         <batchUuid>626e87a4-9f25-4b71-8772-51639fc3d140</batchUuid>
+      </bd:getBatchProgress>
+   </soapenv:Body>
+</soapenv:Envelope>
+
+###
+
 # =============================================================================
 # 4. NODE SERVICE (NodeService)
 # Namespace: http://node.soap.model.server.enfok/
@@ -206,7 +235,7 @@ Authorization: {{authToken}}
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:node="http://node.soap.model.server.enfok/">
    <soapenv:Body>
       <node:getLogsByImage>
-         <imageUuid>img-uuid-aqui</imageUuid>
+         <imageUuid>3b473306-f91f-4f58-b352-11e0b72de5f2</imageUuid>
       </node:getLogsByImage>
    </soapenv:Body>
 </soapenv:Envelope>
@@ -221,7 +250,7 @@ Authorization: {{authToken}}
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:node="http://node.soap.model.server.enfok/">
    <soapenv:Body>
       <node:getMetricsByNode>
-         <nodeId>nodo-go-1</nodeId>
+         <nodeId>nodo-1</nodeId>
       </node:getMetricsByNode>
    </soapenv:Body>
 </soapenv:Envelope>

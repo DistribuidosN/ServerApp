@@ -17,6 +17,8 @@ import enfok.server.config.Config;
 import enfok.server.model.entity.bd.*;
 import enfok.server.utility.JsonMapper;
 import enfok.server.model.entity.dto.node.TransformationItem;
+import enfok.server.model.entity.dto.node.NodeMetricsDTO;
+import enfok.server.model.entity.dto.node.BatchProgressDTO;
 
 @ApplicationScoped
 public class BdRepository implements BdRepositoryInterface {
@@ -332,7 +334,10 @@ public class BdRepository implements BdRepositoryInterface {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return jsonMapper.fromJson(response.body(), new TypeReference<List<BatchWithCover>>() {});
+                System.out.println("[DEBUG JAVA] Batches RAW recibidos desde Go para user " + userUuid + ": " + response.body());
+                List<BatchWithCover> batches = jsonMapper.fromJson(response.body(), new TypeReference<List<BatchWithCover>>() {});
+                System.out.println("[DEBUG JAVA] Batches DTO parseado: Total=" + (batches != null ? batches.size() : 0));
+                return batches;
             }
             return new ArrayList<>();
         } catch (Exception e) {
@@ -351,7 +356,10 @@ public class BdRepository implements BdRepositoryInterface {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return jsonMapper.fromJson(response.body(), PaginatedImages.class);
+                System.out.println("[DEBUG JAVA] Galería Pagina RAW recibida desde Go para batch " + batchUuid + ": " + response.body());
+                PaginatedImages paginated = jsonMapper.fromJson(response.body(), PaginatedImages.class);
+                System.out.println("[DEBUG JAVA] Galería DTO parseada: Total=" + (paginated != null && paginated.getImages() != null ? paginated.getImages().size() : 0));
+                return paginated;
             }
             return null;
         } catch (Exception e) {
@@ -378,6 +386,28 @@ public class BdRepository implements BdRepositoryInterface {
             return response.statusCode() == 201 || response.statusCode() == 200;
         } catch (Exception e) {
             throw new InfrastructureOfflineException("Error al registrar batch: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public BatchProgressDTO getBatchProgress(String batch_uuid) throws InfrastructureOfflineException {
+        validateServer();
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(getApiUrl() + "/batches/" + batch_uuid + "/progress"))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                System.out.println("[DEBUG JAVA] Progreso RAW recibido desde Go para batch " + batch_uuid + ": " + response.body());
+                BatchProgressDTO progress = jsonMapper.fromJson(response.body(), BatchProgressDTO.class);
+                System.out.println("[DEBUG JAVA] Progreso DTO parseado: " + progress.getProgressPercentage() + "%");
+                return progress;
+            }
+            return null;
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error al obtener progreso del batch: " + e.getMessage());
         }
     }
 
@@ -413,7 +443,10 @@ public class BdRepository implements BdRepositoryInterface {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return jsonMapper.fromJson(response.body(), new TypeReference<List<LogRecord>>() {});
+                System.out.println("[DEBUG JAVA] Logs RAW recibido desde Go para imagen " + imageUuid + ": " + response.body());
+                List<LogRecord> logs = jsonMapper.fromJson(response.body(), new TypeReference<List<LogRecord>>() {});
+                System.out.println("[DEBUG JAVA] Logs DTO parseado: Total=" + (logs != null ? logs.size() : 0));
+                return logs;
             }
             return new ArrayList<>();
         } catch (Exception e) {
@@ -454,11 +487,36 @@ public class BdRepository implements BdRepositoryInterface {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return jsonMapper.fromJson(response.body(), new TypeReference<List<NodeMetricsBd>>() {});
+                System.out.println("[DEBUG JAVA] Métricas RAW recibidas desde Go para nodo " + nodeId + ": " + response.body());
+                List<NodeMetricsBd> metrics = jsonMapper.fromJson(response.body(), new TypeReference<List<NodeMetricsBd>>() {});
+                System.out.println("[DEBUG JAVA] Métricas DTO parseado: Total=" + (metrics != null ? metrics.size() : 0));
+                return metrics;
             }
             return new ArrayList<>();
         } catch (Exception e) {
             throw new InfrastructureOfflineException("Error al obtener métricas del nodo: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<NodeMetricsDTO> getMetricsByImage(String imageUuid) throws InfrastructureOfflineException {
+        validateServer();
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(getApiUrl() + "/metrics/image/" + imageUuid))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                System.out.println("[DEBUG JAVA] Métricas por Imagen RAW recibidas desde Go para imagen " + imageUuid + ": " + response.body());
+                List<NodeMetricsDTO> metrics = jsonMapper.fromJson(response.body(), new TypeReference<List<NodeMetricsDTO>>() {});
+                System.out.println("[DEBUG JAVA] Métricas DTO parseado: Total=" + (metrics != null ? metrics.size() : 0));
+                return metrics;
+            }
+            return new ArrayList<>();
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error al obtener métricas de la imagen: " + e.getMessage());
         }
     }
 
@@ -475,7 +533,10 @@ public class BdRepository implements BdRepositoryInterface {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return jsonMapper.fromJson(response.body(), UserStatistics.class);
+                System.out.println("[DEBUG JAVA] Estadísticas RAW recibidas desde Go para user " + userUuid + ": " + response.body());
+                UserStatistics stats = jsonMapper.fromJson(response.body(), UserStatistics.class);
+                System.out.println("[DEBUG JAVA] Estadísticas DTO parseado: " + stats);
+                return stats;
             }
             return null;
         } catch (Exception e) {
@@ -494,7 +555,10 @@ public class BdRepository implements BdRepositoryInterface {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
-                return jsonMapper.fromJson(response.body(), new TypeReference<List<UserActivity>>() {});
+                System.out.println("[DEBUG JAVA] Actividad RAW recibida desde Go para user " + userUuid + ": " + response.body());
+                List<UserActivity> activities = jsonMapper.fromJson(response.body(), new TypeReference<List<UserActivity>>() {});
+                System.out.println("[DEBUG JAVA] Actividad DTO parseado: Total=" + (activities != null ? activities.size() : 0));
+                return activities;
             }
             return new ArrayList<>();
         } catch (Exception e) {

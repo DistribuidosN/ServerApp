@@ -164,8 +164,6 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
 
             // 2. Persistencia síncrona en BD
             try {
-                // [SENIOR FIX]: Enviamos los bytes puros y el nodeId. 
-                // Go se encargará de subir a MinIO y guardar el path + trazabilidad.
                 bdRepository.updateImageResult(taskId, imageBytes, nodeId);
                 
                 // Registramos las métricas de rendimiento recibidas del nodo

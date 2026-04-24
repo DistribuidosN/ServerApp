@@ -16,6 +16,8 @@ public class JsonMapper {
             .setPropertyNamingStrategy(com.fasterxml.jackson.databind.PropertyNamingStrategies.SNAKE_CASE)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+            // PureJSON: Jackson no escapa caracteres como '&' por defecto. 
+            // Se mantiene la configuración estándar para compatibilidad con Go.
 
     public String toJson(Object obj) {
         try {

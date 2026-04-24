@@ -5,8 +5,10 @@ import jakarta.jws.WebParam;
 import jakarta.jws.WebService;
 
 import enfok.server.model.entity.auth.User;
-import enfok.server.model.entity.auth.Activity;
+import enfok.server.model.entity.dto.user.ActivityEventDTO;
+import enfok.server.model.entity.dto.user.UserStatisticsDTO;
 import enfok.server.error.NotFoundException;
+import java.util.List;
 
 @WebService
 public interface apiSoapUser {
@@ -21,10 +23,10 @@ public interface apiSoapUser {
     public boolean deleteAccount() throws NotFoundException;
 
     @WebMethod
-    public Activity getUserActivity() throws NotFoundException;
-
+    public List<ActivityEventDTO> getUserActivity() throws NotFoundException;
+    
     @WebMethod
-    public String getUserStatistics() throws NotFoundException;
+    public UserStatisticsDTO getUserStatistics() throws NotFoundException;
 
     @WebMethod
     public User searchUser(@WebParam(name = "uid") String uid) throws NotFoundException;

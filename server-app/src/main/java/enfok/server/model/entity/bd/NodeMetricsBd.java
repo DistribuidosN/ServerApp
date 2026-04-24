@@ -1,7 +1,7 @@
 package enfok.server.model.entity.bd;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.sql.Timestamp;
+import java.time.OffsetDateTime;
 
 public class NodeMetricsBd {
     private long id;
@@ -51,7 +51,7 @@ public class NodeMetricsBd {
     private String status;
     
     @JsonProperty("reported_at")
-    private Timestamp reportedAt;
+    private OffsetDateTime reportedAt;
 
     // Getters and Setters
     public long getId() { return id; }
@@ -86,6 +86,6 @@ public class NodeMetricsBd {
     public void setUptimeSeconds(long uptimeSeconds) { this.uptimeSeconds = uptimeSeconds; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
-    public Timestamp getReportedAt() { return reportedAt; }
-    public void setReportedAt(Timestamp reportedAt) { this.reportedAt = reportedAt; }
+    public OffsetDateTime getReportedAt() { return reportedAt; }
+    public void setReportedAt(OffsetDateTime reportedAt) { this.reportedAt = reportedAt; }
 }

@@ -12,6 +12,8 @@ import enfok.server.model.entity.bd.Batches;
 import enfok.server.model.entity.bd.Image;
 import enfok.server.model.entity.bd.BatchWithCover;
 import enfok.server.model.entity.bd.PaginatedImages;
+import enfok.server.model.entity.dto.node.NodeMetricsDTO;
+import enfok.server.model.entity.dto.node.BatchProgressDTO;
 
 @WebService
 public interface apiSoapBD {
@@ -37,4 +39,10 @@ public interface apiSoapBD {
     public PaginatedImages getPaginatedImages(@WebParam(name = "batchUuid") String batchUuid, 
                                             @WebParam(name = "page") int page, 
                                             @WebParam(name = "limit") int limit) throws InfrastructureOfflineException;
+
+    @WebMethod
+    public List<NodeMetricsDTO> getImageMetrics(@WebParam(name = "imageUuid") String imageUuid) throws InfrastructureOfflineException;
+
+    @WebMethod
+    public BatchProgressDTO getBatchProgress(@WebParam(name = "batchUuid") String batchUuid) throws InfrastructureOfflineException;
 }

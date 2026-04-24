@@ -14,6 +14,8 @@ import jakarta.inject.Inject;
 import enfok.server.ports.adapter.UserRepositoryInterface;
 import enfok.server.ports.port.AuthOrchestator;
 import enfok.server.model.entity.dto.auth.ValidateResponse;
+import enfok.server.model.entity.dto.node.NodeMetricsDTO;
+import enfok.server.model.entity.dto.node.BatchProgressDTO;
 import enfok.server.error.NotFoundException;
 
 @ApplicationScoped
@@ -94,6 +96,30 @@ public class BdOrchestratorService implements BdOrchestrator {
             return bdRepository.getBatchImagesPaginated(batchUuid   , page, limit);
         } catch (enfok.server.error.NotFoundException e) {
             throw new RuntimeException("Perfil no encontrado: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public List<NodeMetricsDTO> getImageMetrics(String token, String imageUuid) throws InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) throw new RuntimeException("Token faltante");
+        try {
+            ValidateResponse resToken = authOrchestator.validateToken(token);
+            if (resToken == null || resToken.isValid() == false) throw new RuntimeException("Usuario no autorizado");
+            return bdRepository.getMetricsByImage(imageUuid);
+        } catch (enfok.server.error.NotFoundException e) {
+            throw new RuntimeException("Error de autenticación: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public BatchProgressDTO getBatchProgress(String token, String batchUuid) throws InfrastructureOfflineException {
+        if (token == null || token.isEmpty()) throw new RuntimeException("Token faltante");
+        try {
+            ValidateResponse resToken = authOrchestator.validateToken(token);
+            if (resToken == null || resToken.isValid() == false) throw new RuntimeException("Usuario no autorizado");
+            return bdRepository.getBatchProgress(batchUuid);
+        } catch (enfok.server.error.NotFoundException e) {
+            throw new RuntimeException("Error de autenticación: " + e.getMessage());
         }
     }
 }

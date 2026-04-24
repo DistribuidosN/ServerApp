@@ -1,7 +1,7 @@
 package enfok.server.model.entity.bd;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.sql.Timestamp;
+import java.time.OffsetDateTime;
 
 public class LogRecord {
     private int id;
@@ -24,7 +24,7 @@ public class LogRecord {
     private int transformationId;
     
     @JsonProperty("log_time")
-    private Timestamp createdAt;
+    private OffsetDateTime createdAt;
 
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
@@ -47,6 +47,6 @@ public class LogRecord {
     public int getTransformationId() { return transformationId; }
     public void setTransformationId(int transformationId) { this.transformationId = transformationId; }
 
-    public Timestamp getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
 }
