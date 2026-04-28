@@ -2,6 +2,8 @@ package enfok.server.ports.port;
 
 import enfok.server.model.soap.BatchRequestDto;
 import enfok.server.model.soap.BatchResponseDto;
+import enfok.server.model.soap.DownloadBatchRequestDto;
+import enfok.server.model.soap.DownloadBatchResponseDto;
 
 /**
  * [PORT - IN]: Puerto de Entrada
@@ -11,4 +13,5 @@ import enfok.server.model.soap.BatchResponseDto;
  */
 public interface BatchOrchestratorService {
     BatchResponseDto handleBatch(BatchRequestDto request);
+    DownloadBatchResponseDto handleDownloadBatch(DownloadBatchRequestDto request);
 }

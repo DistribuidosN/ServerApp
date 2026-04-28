@@ -37,6 +37,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -341,7 +342,7 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
         bd.setTasksDone(m.getTasksDone());
         bd.setUptimeSeconds(m.getUptimeSeconds());
         bd.setStatus(m.getStatus());
-        bd.setReportedAt(new java.sql.Timestamp(System.currentTimeMillis()));
+        bd.setReportedAt(OffsetDateTime.now());
         return bd;
     }
 

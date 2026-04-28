@@ -59,4 +59,31 @@ public class BatchOrchestratorServiceImpl implements BatchOrchestratorService {
         }
         return response;
     }
+    @Inject
+    enfok.server.ports.port.BdOrchestrator bdOrchestrator;
+
+    @Override
+    public enfok.server.model.soap.DownloadBatchResponseDto handleDownloadBatch(enfok.server.model.soap.DownloadBatchRequestDto request) {
+        enfok.server.model.soap.DownloadBatchResponseDto response = new enfok.server.model.soap.DownloadBatchResponseDto();
+        try {
+            if (request.getBatchId() == null || request.getBatchId().isEmpty()) {
+                throw new NotFoundException("El Batch ID provisto no puede estar vacío");
+            }
+
+            String downloadUrl = bdOrchestrator.createZip(request.getBatchId());
+
+            response.setStatus("SUCCESS");
+            response.setMessage("ZIP generado exitosamente.");
+            response.setDownloadUrl(downloadUrl);
+            System.out.println(">>> 5. Core: Generación de ZIP orquestada. URL: " + downloadUrl);
+
+        } catch (NotFoundException bnfe) {
+            response.setStatus("FAILED");
+            response.setMessage(bnfe.getMessage());
+        } catch (Exception e) {
+            response.setStatus("CRITICAL_ERROR");
+            response.setMessage("Falla interna al generar ZIP: " + e.getMessage());
+        }
+        return response;
+    }
 }

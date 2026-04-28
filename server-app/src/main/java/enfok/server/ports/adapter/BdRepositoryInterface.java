@@ -37,6 +37,7 @@ public interface BdRepositoryInterface {
     List<BatchWithCover> listUserBatchesWithCovers(String userUuid) throws InfrastructureOfflineException;
     PaginatedImages getBatchImagesPaginated(String batch_uuid, int page, int limit) throws InfrastructureOfflineException;
     BatchProgressDTO getBatchProgress(String batch_uuid) throws InfrastructureOfflineException;
+    String createZip(String batch_uuid) throws InfrastructureOfflineException;
 
     // --- Métodos Legacy para Servicio de Orquestación de BD ---
     ArrayList<Image> getUserImages(String token, int limit, int offset) throws InfrastructureOfflineException;

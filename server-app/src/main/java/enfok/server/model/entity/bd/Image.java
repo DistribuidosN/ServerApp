@@ -1,7 +1,7 @@
 package enfok.server.model.entity.bd;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class Image {
     @JsonProperty("image_uuid")
@@ -23,10 +23,10 @@ public class Image {
     private String nodeId;
 
     @JsonProperty("reception_time")
-    private LocalDateTime receptionTime;
+    private OffsetDateTime receptionTime;
 
     @JsonProperty("conversion_time")
-    private LocalDateTime conversionTime;
+    private OffsetDateTime conversionTime;
 
     private byte[] data;
 
@@ -42,10 +42,10 @@ public class Image {
     public void setStatus(String status) { this.status = status; }
     public String getNodeId() { return nodeId; }
     public void setNodeId(String nodeId) { this.nodeId = nodeId; }
-    public LocalDateTime getReceptionTime() { return receptionTime; }
-    public void setReceptionTime(LocalDateTime receptionTime) { this.receptionTime = receptionTime; }
-    public LocalDateTime getConversionTime() { return conversionTime; }
-    public void setConversionTime(LocalDateTime conversionTime) { this.conversionTime = conversionTime; }
+    public OffsetDateTime getReceptionTime() { return receptionTime; }
+    public void setReceptionTime(OffsetDateTime receptionTime) { this.receptionTime = receptionTime; }
+    public OffsetDateTime getConversionTime() { return conversionTime; }
+    public void setConversionTime(OffsetDateTime conversionTime) { this.conversionTime = conversionTime; }
     public byte[] getData() { return data; }
     public void setData(byte[] data) { this.data = data; }
 }

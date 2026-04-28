@@ -1,7 +1,7 @@
 package enfok.server.model.entity.bd;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class Batches {
     @JsonProperty("batch_uuid")
@@ -11,7 +11,7 @@ public class Batches {
     private String userUuid;
 
     @JsonProperty("request_time")
-    private LocalDateTime requestTime;
+    private OffsetDateTime requestTime;
 
     @JsonProperty("status")
     private String status;
@@ -20,8 +20,8 @@ public class Batches {
     public void setBatchUuid(String batchUuid) { this.batchUuid = batchUuid; }
     public String getUserUuid() { return userUuid; }
     public void setUserUuid(String userUuid) { this.userUuid = userUuid; }
-    public LocalDateTime getRequestTime() { return requestTime; }
-    public void setRequestTime(LocalDateTime requestTime) { this.requestTime = requestTime; }
+    public OffsetDateTime getRequestTime() { return requestTime; }
+    public void setRequestTime(OffsetDateTime requestTime) { this.requestTime = requestTime; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
 }

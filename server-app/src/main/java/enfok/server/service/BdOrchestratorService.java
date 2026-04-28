@@ -122,4 +122,11 @@ public class BdOrchestratorService implements BdOrchestrator {
             throw new RuntimeException("Error de autenticación: " + e.getMessage());
         }
     }
+
+    @Override
+    public String createZip(String batchId) throws InfrastructureOfflineException {
+        // Podríamos validar el token aquí si lo pasáramos, pero para este caso el orquestador confía en el parámetro o podemos añadir auth después.
+        // Dado el prompt, asumimos que se llamará directamente.
+        return bdRepository.createZip(batchId);
+    }
 }

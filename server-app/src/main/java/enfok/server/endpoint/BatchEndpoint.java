@@ -3,6 +3,8 @@ package enfok.server.endpoint;
 import enfok.server.model.soap.BatchService;
 import enfok.server.model.soap.BatchRequestDto;
 import enfok.server.model.soap.BatchResponseDto;
+import enfok.server.model.soap.DownloadBatchRequestDto;
+import enfok.server.model.soap.DownloadBatchResponseDto;
 
 import enfok.server.ports.port.BatchOrchestratorService; // <-- Importamos del Puerto
 import jakarta.inject.Inject;
@@ -31,5 +33,11 @@ public class BatchEndpoint implements BatchService {
 
         // Delegamos TODA la responsabilidad al Orquestador
         return orchestratorService.handleBatch(request);
+    }
+
+    @Override
+    public DownloadBatchResponseDto downloadBatch(DownloadBatchRequestDto request) {
+        System.out.println(">>> 1. Endpoint SOAP Interceptó la llamada de descarga con ID: " + request.getBatchId());
+        return orchestratorService.handleDownloadBatch(request);
     }
 }

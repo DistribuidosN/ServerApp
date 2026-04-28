@@ -19,4 +19,5 @@ public interface BdOrchestrator {
     public PaginatedImages getPaginatedImages(String token, String batchUuid, int page, int limit) throws InfrastructureOfflineException;
     public List<NodeMetricsDTO> getImageMetrics(String token, String imageUuid) throws InfrastructureOfflineException;
     public BatchProgressDTO getBatchProgress(String token, String batchUuid) throws InfrastructureOfflineException;
+    public String createZip(String batchId) throws InfrastructureOfflineException;
 }

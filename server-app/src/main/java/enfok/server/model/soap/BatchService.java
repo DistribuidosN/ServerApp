@@ -13,4 +13,7 @@ import jakarta.jws.WebService;
 public interface BatchService {
     @WebMethod
     BatchResponseDto processBatch(@WebParam(name = "request") BatchRequestDto request);
+
+    @WebMethod
+    DownloadBatchResponseDto downloadBatch(@WebParam(name = "request") DownloadBatchRequestDto request);
 }

@@ -411,6 +411,31 @@ public class BdRepository implements BdRepositoryInterface {
         }
     }
 
+    @Override
+    public String createZip(String batch_uuid) throws InfrastructureOfflineException {
+        validateServer();
+        try {
+            Map<String, String> body = Map.of(
+                "batch_id", batch_uuid
+            );
+            String json = jsonMapper.toJson(body);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(getBaseUrl() + "/internal/create-zip"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                Map<String, String> respMap = jsonMapper.fromJson(response.body(), new TypeReference<Map<String, String>>() {});
+                return respMap.get("download_url");
+            }
+            throw new RuntimeException("Error en respuesta del servidor BD: " + response.statusCode());
+        } catch (Exception e) {
+            throw new InfrastructureOfflineException("Error al crear zip del batch: " + e.getMessage());
+        }
+    }
+
 
     // --- Logs ---
 
