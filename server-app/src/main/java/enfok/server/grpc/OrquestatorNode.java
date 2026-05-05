@@ -83,11 +83,6 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
             if (item == null)
                 break; // cola vacía → dejamos de sacar
 
-            // 1. Unimos todos los filtros separados por comas (ej: "blur,ocr,grayscale")
-            String filtrosAplicar = (item.transformations != null && !item.transformations.isEmpty())
-                    ? String.join(",", item.transformations)
-                    : "thumbnail"; // default de seguridad
-
             // 2. Extraemos los bytes a una variable nueva de tipo ByteString de gRPC
             com.google.protobuf.ByteString grpcImageData = com.google.protobuf.ByteString.copyFrom(item.imageBytes);
 
@@ -96,7 +91,9 @@ public class OrquestatorNode extends MutinyOrchestratorGrpc.OrchestratorImplBase
                     ImageTask.newBuilder()
                             .setTaskId(item.id)
                             .setFilename(item.filename)
-                            .setFilterType(filtrosAplicar) // Asignamos el filtro real
+                            .setImageFormat(item.imageFormat != null && !item.imageFormat.isBlank()
+                                    ? item.imageFormat
+                                    : "unknown")
                             .setImageData(grpcImageData) // <-- ¡Inyectamos la nueva variable limpia!
                             .setTargetWidth(item.width)
                             .setTargetHeight(item.height)
