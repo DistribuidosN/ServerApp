@@ -38,7 +38,7 @@ public class BdRepository implements BdRepositoryInterface {
 
     private String getBaseUrl() {
 
-        String url = "http://" + config.getBdSystem();
+        String url = config.getBdSystem();
         if (url != null && url.endsWith("/")) {
             return url.substring(0, url.length() - 1);
         }

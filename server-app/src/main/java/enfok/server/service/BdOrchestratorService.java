@@ -12,6 +12,7 @@ import enfok.server.error.InfrastructureOfflineException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import enfok.server.ports.adapter.UserRepositoryInterface;
+import enfok.server.utility.UrlIpRefactor;
 import enfok.server.ports.port.AuthOrchestator;
 import enfok.server.model.entity.dto.auth.ValidateResponse;
 import enfok.server.model.entity.dto.node.NodeMetricsDTO;
@@ -29,6 +30,9 @@ public class BdOrchestratorService implements BdOrchestrator {
 
     @Inject
     private AuthOrchestator authOrchestator;
+
+    @Inject
+    private UrlIpRefactor urlIpRefactor;
 
     @Override
     public String getNodeStatus(String token) throws InfrastructureOfflineException {
@@ -81,7 +85,7 @@ public class BdOrchestratorService implements BdOrchestrator {
         try {
             ValidateResponse resToken = authOrchestator.validateToken(token);
             if (resToken == null || resToken.isValid() == false || resToken.getUserUuid() == null) throw new RuntimeException("Usuario no encontrado");
-            return bdRepository.listUserBatchesWithCovers(resToken.getUserUuid());
+            return urlIpRefactor.refactorBatchWithCovers(bdRepository.listUserBatchesWithCovers(resToken.getUserUuid()));
         } catch (enfok.server.error.NotFoundException e) {
             throw new RuntimeException("Perfil no encontrado: " + e.getMessage());
         }
@@ -93,7 +97,7 @@ public class BdOrchestratorService implements BdOrchestrator {
         try {
             ValidateResponse resToken = authOrchestator.validateToken(token);
             if (resToken == null || resToken.isValid() == false || resToken.getUserUuid() == null) throw new RuntimeException("Usuario no encontrado");
-            return bdRepository.getBatchImagesPaginated(batchUuid   , page, limit);
+            return urlIpRefactor.refactorPaginatedImages(bdRepository.getBatchImagesPaginated(batchUuid   , page, limit));
         } catch (enfok.server.error.NotFoundException e) {
             throw new RuntimeException("Perfil no encontrado: " + e.getMessage());
         }
@@ -127,6 +131,6 @@ public class BdOrchestratorService implements BdOrchestrator {
     public String createZip(String batchId) throws InfrastructureOfflineException {
         // Podríamos validar el token aquí si lo pasáramos, pero para este caso el orquestador confía en el parámetro o podemos añadir auth después.
         // Dado el prompt, asumimos que se llamará directamente.
-        return bdRepository.createZip(batchId);
+        return urlIpRefactor.refactorUrl(bdRepository.createZip(batchId));
     }
 }

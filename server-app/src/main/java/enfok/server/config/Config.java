@@ -15,6 +15,9 @@ public class Config {
     @ConfigProperty(name = "BD_SYSTEM", defaultValue = "")
     private String bdSystem;
 
+    @ConfigProperty(name = "SERVER_IP", defaultValue = "")
+    private String serverIP;
+
     public boolean isMockServices() {
         return mockServices;
     }
@@ -23,6 +26,9 @@ public class Config {
     }
     public String getBdSystem() {
         return bdSystem;
+    }
+    public String getServerIP() {
+        return serverIP;
     }
 
 }
